@@ -1,0 +1,8 @@
+.sites-local/
+*.tar.gz
+*.log
+*-preview.jpg
+node_modules/
+desktop-release/
+.desktop-smoke.json
+.runtime/
