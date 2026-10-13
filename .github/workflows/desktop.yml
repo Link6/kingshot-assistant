@@ -29,6 +29,17 @@ jobs:
       - run: npm run ${{ matrix.script }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Verify packaged Windows app
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $testApp = Start-Process -FilePath './desktop-release/win-unpacked/Kingshot Assistant.exe' -ArgumentList '--smoke-test' -WindowStyle Hidden -PassThru
+          if (-not $testApp.WaitForExit(60000)) { $testApp.Kill(); throw 'Desktop smoke test timed out' }
+          if ($testApp.ExitCode -ne 0) { throw 'Desktop smoke test failed' }
+          if (-not (Test-Path '.desktop-smoke.json')) { throw 'Desktop smoke result missing' }
+          $result = Get-Content '.desktop-smoke.json' -Raw | ConvertFrom-Json
+          $result | ConvertTo-Json
+          foreach ($property in $result.PSObject.Properties) { if ($property.Value -ne $true) { throw "Failed: $($property.Name)" } }
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.os }}
