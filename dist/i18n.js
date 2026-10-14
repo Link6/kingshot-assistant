@@ -483,7 +483,7 @@
   ],
   "gathering": [
     "集结中",
-    "Gathering"
+    "Rallying"
   ],
   "marching": [
     "行军中",
@@ -812,9 +812,9 @@
   "marchAdjust": ["微调已记录的行军时间", "Adjust recorded march time"],
   "adjustPrepare": ["集结时间调整 {delta} 秒", "Adjust rally time by {delta} seconds"],
   "adjustMarch": ["行军时间调整 {delta} 秒", "Adjust march time by {delta} seconds"],
-  "adjustHelp": ["＋ 延后，− 提前。按钮立即修改本次记录和补兵窗口，无需重新记录；上方输入保留用于下次记录。集结结束后自动开始行军倒计时。", "+ delays, − advances. Buttons immediately update this record and reinforcement windows. Inputs above remain for the next recording. March countdown starts when gathering ends."],
+  "adjustHelp": ["＋ 延后，− 提前。按钮立即修改本次记录和补兵窗口，无需重新记录；上方输入保留用于下次记录。集结结束后自动开始行军倒计时。", "+ delays, − advances. Buttons immediately update this record and reinforcement windows. Inputs above remain for the next recording. March countdown starts when rallying ends."],
   "adjustApplied": ["已校准 · 预计攻击 {time}", "Adjusted · estimated attack {time}"],
-  "prepareEnded": ["集结阶段已结束，请微调行军时间或重新记录。", "Gathering has ended. Adjust march time or record again."],
+  "prepareEnded": ["集结阶段已结束，请微调行军时间或重新记录。", "Rallying has ended. Adjust march time or record again."],
   "adjustBelowZero": ["调整后集结剩余不能小于 0 秒，请使用更小步长。", "Rally time remaining cannot be negative. Use a smaller step."]
 };
 
