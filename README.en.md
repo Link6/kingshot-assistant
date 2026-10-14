@@ -87,6 +87,8 @@ npm test
 
 To use the app, download the executable for your system from [Releases](https://github.com/Link6/kingshot-assistant/releases/latest). Windows offers an installer and a portable version. Node.js is not required to run these downloads.
 
+The desktop product name is **Kingshot Assistant**, with one set of downloads per platform. The interface and window title can switch between Chinese and English. The Windows application, installer and uninstaller, macOS application and DMG, and Linux AppImage use the project's gold K icon. Windows builds verify every icon size embedded in the actual EXEs.
+
 Install development dependencies and start the app:
 
 ```sh

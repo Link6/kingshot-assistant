@@ -34,6 +34,9 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Verify packaged MIT license
         run: node scripts/verify-packaged-license.cjs
+      - name: Verify Windows executable icons
+        if: runner.os == 'Windows'
+        run: node scripts/verify-windows-icons.cjs
       - name: Verify packaged Windows app
         if: runner.os == 'Windows'
         shell: pwsh

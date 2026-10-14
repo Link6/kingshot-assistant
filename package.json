@@ -1,7 +1,7 @@
 {
   "name": "kingshot-timing-assistant",
   "private": true,
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Offline rally coordination and reinforcement timing for Kingshot",
   "author": "Link6",
   "license": "MIT",
@@ -23,10 +23,11 @@
     "directories": { "output": "desktop-release" },
     "files": ["dist/**/*", "electron/**/*", "package.json", "LICENSE", "!dist/sw.js"],
     "asar": true,
-    "win": { "target": ["nsis", "portable"] },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "Kingshot-Assistant-Setup-${version}-${arch}.${ext}" },
+    "win": { "target": ["nsis", "portable"], "icon": "electron/icons/icon.ico" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "installerIcon": "electron/icons/icon.ico", "uninstallerIcon": "electron/icons/icon.ico", "artifactName": "Kingshot-Assistant-Setup-${version}-${arch}.${ext}" },
     "portable": { "artifactName": "Kingshot-Assistant-Portable-${version}-${arch}.${ext}" },
-    "mac": { "target": "dmg", "category": "public.app-category.utilities" },
-    "linux": { "target": "AppImage", "category": "Utility" }
+    "mac": { "target": "dmg", "icon": "electron/icons/icon.icns", "category": "public.app-category.utilities" },
+    "dmg": { "icon": "electron/icons/icon.icns" },
+    "linux": { "target": "AppImage", "icon": "electron/icons/icon.png", "category": "Utility" }
   }
 }

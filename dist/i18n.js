@@ -96,8 +96,8 @@
     "Every second counts"
   ],
   "version": [
-    "独立辅助工具 · v0.2.6",
-    "Independent tool · v0.2.6"
+    "独立辅助工具 · v0.2.7",
+    "Independent tool · v0.2.7"
   ],
   "workbench": [
     "作战工作台",

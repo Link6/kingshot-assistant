@@ -8,6 +8,7 @@ const smoke=process.argv.includes('--smoke-test');
 if(smoke)app.setPath('userData',path.join(process.cwd(),'.runtime','smoke-user-data'));
 app.setAppUserModelId('io.github.link6.kingshot-assistant');
 const entry=path.join(__dirname,'..','dist','index.html'),entryURL=pathToFileURL(entry).href;
+const icon=path.join(__dirname,'icons',process.platform==='win32'?'icon.ico':'icon.png');
 let win,fullBounds,compact=false,pinned=false,alarmInterval;
 const queue=new AlarmQueue();
 const preferences=()=>path.join(app.getPath('userData'),'window.json');
@@ -26,7 +27,7 @@ function resetClock(){queue.clear();if(win&&!win.isDestroyed())win.webContents.s
 async function createWindow(){
   let saved={};try{saved=JSON.parse(fs.readFileSync(preferences(),'utf8'));}catch{}
   pinned=saved.pinned===true;
-  win=new BrowserWindow({width:1250,height:850,...(validBounds(saved.bounds)?saved.bounds:{}),minWidth:720,minHeight:560,show:false,backgroundColor:'#11171b',autoHideMenuBar:true,title:'Kingshot Assistant',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false}});
+  win=new BrowserWindow({width:1250,height:850,...(validBounds(saved.bounds)?saved.bounds:{}),minWidth:720,minHeight:560,show:false,backgroundColor:'#11171b',autoHideMenuBar:true,title:'Kingshot Assistant',icon,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false}});
   win.setMenu(null);win.setAlwaysOnTop(pinned);
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('will-navigate',(event,url)=>{if(url.split('#')[0]!==entryURL)event.preventDefault();});
@@ -58,7 +59,7 @@ else{
       const wall=Date.now(),mono=performance.now();
       if(wall-lastWall>10000||Math.abs((wall-lastWall)-(mono-lastMono))>3000)resetClock();
       lastWall=wall;lastMono=mono;
-      for(const event of queue.due(wall))if(win&&!win.isFocused()&&!smoke&&Notification.isSupported())new Notification({title:event.title,body:event.body,silent:true}).show();
+      for(const event of queue.due(wall))if(win&&!win.isFocused()&&!smoke&&Notification.isSupported())new Notification({title:event.title,body:event.body,icon,silent:true}).show();
     },100);
     await createWindow();
     app.on('activate',()=>{if(!win)createWindow().catch(()=>app.quit());});

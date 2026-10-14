@@ -87,6 +87,8 @@ npm test
 
 直接使用请前往 [Releases](https://github.com/Link6/kingshot-assistant/releases/latest) 下载对应系统的可执行文件。Windows 提供安装版和免安装便携版，下载后无需安装 Node.js。
 
+桌面应用名称统一为 **Kingshot Assistant**，每个平台提供一套下载包，界面和窗口标题可切换中英文。Windows 程序、安装器和卸载程序，macOS 应用与 DMG，以及 Linux AppImage 均使用项目的金色「K」图标；Windows 构建会核对实际 EXE 中各尺寸的图标资源。
+
 安装开发依赖并启动：
 
 ```sh
