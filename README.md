@@ -1,51 +1,100 @@
 # Kingshot Assistant
 
-[在线使用 / Open app](https://link6.github.io/kingshot-assistant/)
+**简体中文** | [English](README.en.md)
 
-中文 / English 界面的集结同步与王城补兵计时工具。所有计算和输入都保存在设备本地，无需账号。
+[在线使用](https://link6.github.io/kingshot-assistant/) · [桌面版构建](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml)
 
-- **集结同步**：填写每位车头的准备时长与行军时间，自动倒推出各自发起时间，让多队同时到达。
-- **王城补兵**：在游戏倒计时与输入一致时点“记录现在”，自动计算相邻敌方攻击之间的出征窗口，扣除自己的行军时间和边界余量。
-- **语言切换**：切换中文与英文不重置当前计时。刷新只恢复输入，需要重新记录战况。
-- **补兵实时校准**：记录后显示每队集结与行军倒计时，集结结束自动转为行军。用 `−1 / −0.1 / +0.1 / +1 秒` 分别微调两阶段，立即更新攻击到达和补兵窗口，不重置已走过的时间。集结结束后只调整行军；上方输入保留用于下次重新记录。
-- **桌面版**：Electron 共用网页代码，增加窗口置顶、精简小窗、窗口位置记忆和后台系统提醒。睡眠恢复后清除实战计时，避免过期提示。
+Kingshot 集结同步与王城补兵计时助手，支持中文、英文和 Electron 桌面版。无需账号，计算在设备本地完成，常用输入自动保存在本机。
+
+## 功能
+
+- **集结同步**：按每位车头的集结准备时长和行军时间，计算各自发起集结的时刻，让多队同时到达同一目标。支持自动安排或指定共同到达时间。
+- **UTC 时钟与时间表**：显示当前 UTC 时间，按发起顺序列出车头，一键复制简短的「名字 + UTC 发起时间」，方便粘贴给队友。
+- **王城补兵**：记录敌方倒计时，计算相邻两次攻击之间的补兵出征窗口，自动扣除自己的行军时间和窗口两端的容错。
+- **实时倒计时与微调**：记录后立即倒计时，集结结束自动转为行军；使用 `−1 / −0.1 / +0.1 / +1 秒` 按钮校准已记录的时间。
+- **窄窗口警告**：扣除容错后，可用补兵窗口大于 0 且小于 1 秒时显示黄色警告：**可能补兵失败，注意医院容量。**
+- **中英文与桌面支持**：切换语言不重置计时；Electron 版提供窗口置顶、精简小窗、窗口位置记忆和后台系统提醒。
+
+## 怎么用
+
+### 多个车头同时到达
+
+1. 在「集结同步」添加车头，填写昵称、集结准备时长和到同一目标的实际行军时间。
+2. 选择「自动安排」，设置最早开车前的准备时间；也可选择「指定到达时间」。指定时间的输入使用**设备本地时间**，排程结果显示为 UTC。
+3. 点击「生成开车倒计时」，按提示发起集结。这里的开车时刻指**点击发起集结的时刻**。
+4. 在大倒计时下方的「UTC 集结时间表」点击「一键复制时间表」，粘贴给队友。按钮始终显示，生成排程后即可使用。
+
+复制内容示例：
+
+```text
+车头A 12:30:05 UTC
+车头B 12:30:15 UTC
+车头C 12:30:20.5 UTC
+```
+
+复制内容只包含名字和发起时刻，不包含日期、序号或共同到达时间；有小数秒时保留精度。修改名单或设置后，需要重新生成排程；在此之前，倒计时和复制内容仍使用原排程。
+
+### 在两波攻击之间补兵
+
+1. 在「王城补兵」填写自己的实际行军时间，以及窗口两端各留出的容错。
+2. 添加至少两支敌方队伍，选择「集结中」或「行军中」，填写对应的游戏倒计时和行军时间。
+3. 当游戏倒计时走到输入读数时，点击该队的「记录现在」。记录后立即显示实时倒计时，可直接与游戏对照。
+4. 如有偏差，用微调按钮修改当前记录：`＋` 延后，`−` 提前。修改立即更新预计攻击到达时间和补兵窗口，不重置已走过的时间，也不影响其他队伍。集结阶段结束后，只能微调行军时间。
+5. 按补兵提示点击出征。显示的是**你发兵的时刻**，已经扣除了自己的行军时间。
+
+上方输入保留用于下次记录。重新记录只替换当前队伍的记录。容错扣除后没有可用间隙时，不提供可用补兵窗口；窗口不足 1 秒时会显示黄色警告。
+
+时长支持 `5:00`、`35`、`29.5秒`、`4m 40s` 等格式；纯数字按秒计算。
 
 ## 本地运行
 
-网页没有第三方运行依赖。安装 Node.js 24 后：
+需要 Node.js 24 或更新版本。网页无第三方运行依赖，无需先执行 `npm ci`。
 
 ```sh
+git clone https://github.com/Link6/kingshot-assistant.git
+cd kingshot-assistant
 npm start
+```
+
+打开 [http://localhost:4173](http://localhost:4173)。也可直接打开 `dist/index.html`；离线缓存需要 HTTP/HTTPS。
+
+运行检查：
+
+```sh
 npm test
 ```
 
-打开 http://localhost:4173 。也可直接打开 `dist/index.html`；离线缓存功能需要 HTTP/HTTPS。
+## Electron 桌面版
 
-## 桌面开发与打包
+安装开发依赖并启动：
 
 ```sh
 npm ci
 npm run desktop
-npm run dist:win
-# 在相应平台运行：npm run dist:mac / npm run dist:linux
 ```
 
-Electron 首次启动/打包需要下载官方运行时。成品输出至 `desktop-release/`。Windows 提供安装版和便携版；macOS 提供 DMG；Linux 提供 AppImage。当前构建未配置代码签名、macOS 公证和自动更新。
+在对应系统上打包：
 
-GitHub Actions 的 **Build desktop apps** 可手动运行，在三个平台分别打包并上传构建产物。下载该次运行的 `desktop-*` artifacts。
+| 系统 | 命令 | 输出格式 |
+| --- | --- | --- |
+| Windows | `npm run dist:win` | 安装版 EXE、便携版 EXE |
+| macOS | `npm run dist:mac` | DMG |
+| Linux | `npm run dist:linux` | AppImage |
 
-## GitHub Pages
+安装依赖时需要下载 Electron 运行时，打包也可能需要下载构建工具。成品输出至 `desktop-release/`。当前未配置代码签名、macOS 公证和自动更新。
 
-仓库 Settings → Pages → Source 选择 GitHub Actions。推送到 `main` 会先运行计算测试，再部署 `dist/`。资源路径、缓存和本地存储兼容 `/kingshot-assistant/` 项目路径。首次在线加载完成后支持离线网页。
+也可在 GitHub Actions 的 [Build desktop apps](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml) 页面手动运行工作流。完成后，在该次运行的 Artifacts 区域下载对应的 `desktop-windows-latest`、`desktop-macos-latest` 或 `desktop-ubuntu-latest`。推送 `v*` 标签也会触发桌面构建。
 
-## 使用边界
+## GitHub Pages 部署
 
-本工具依据手动录入读数计算，不读取或操作游戏。设备时钟、网络、游戏与手动操作延迟会影响实际结果；边界余量不构成到达保证。网页实战时请保持前台，后台或锁屏可能延迟提醒；提示声音只针对当前显示的工具。桌面提醒还受系统通知设置影响。不同设备、域名和桌面应用的数据不自动同步。
+仓库 **Settings → Pages → Source** 选择 **GitHub Actions**。推送到 `main` 后，[Deploy GitHub Pages](.github/workflows/pages.yml) 会先运行测试，再部署 `dist/`。
 
-补兵规则当前按“援军在两次敌方攻击之间到达王城”实现，参考原工具说明，尚需真实游戏验证。
+资源路径、离线缓存和本地存储支持 `/kingshot-assistant/` 项目路径。在线加载并完成缓存后，可离线使用网页。若更新后仍显示旧界面，请强制刷新；必要时关闭页面后重新打开。
 
-## English
+## 数据与计时说明
 
-A local-first timing assistant with Chinese and English UI. Coordinate rally leaders to arrive together, or calculate when to send reinforcements between consecutive enemy attacks. Enter the game countdown and click **Record now** when it matches. Language changes preserve active timestamps; reloading keeps drafts but clears live battle records.
-
-Use Node.js 24: `npm start` for the dependency-free website, `npm test` for calculation tests, and `npm ci` then `npm run desktop` for Electron. Build with `dist:win`, `dist:mac`, or `dist:linux` on the corresponding OS. GitHub Actions builds all three platforms. Packages are currently unsigned and have no automatic update channel. Keep the browser in front during battle; timing depends on accurate input and game latency.
+- 常用输入保存在当前浏览器或桌面应用本地，不同设备、域名及网页与桌面版之间不会自动同步。
+- 切换语言保留当前计时；刷新只恢复输入，需要重新生成排程或记录战况。设备睡眠恢复或检测到明显时钟跳变时，会清除实战计时。
+- UTC 根据设备时钟换算，不是从游戏服务器读取的时间。使用前请确保设备时间准确。
+- 本工具根据手动输入计算，不读取或操作游戏。补兵按「援军在两次敌方攻击之间到达王城」计算，实际结果仍受游戏延迟和操作时刻影响，需结合实战核对。
+- 网页实战请保持在前台；后台或锁屏可能延迟提醒。提示声音只针对当前显示的功能，桌面后台提醒还受系统通知设置影响。
