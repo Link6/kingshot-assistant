@@ -1,7 +1,7 @@
 {
   "name": "kingshot-timing-assistant",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Offline rally coordination and reinforcement timing for Kingshot",
   "author": "Link6",
   "engines": { "node": ">=24" },

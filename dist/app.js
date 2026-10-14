@@ -74,7 +74,10 @@
     $(`enemy-live-${rec.id}`).querySelectorAll('[data-adjust="prepare"]').forEach(button=>button.disabled=live.stage!=='gathering');
   }
   function renderRallyTimeline(){
-    $('rally-timeline').innerHTML=!plan?`<div class="result-placeholder">${t('timelineEmpty')}</div>`:plan.rows.map((r,i)=>`<div class="timeline-row" id="launch-row-${r.id}"><span class="order">${i+1}</span><div><b>${esc(rowName(r))}</b><small>${t('rowDurations',{prepare:duration(r.prepareSeconds),march:duration(r.marchSeconds)})}</small></div><div class="time">${clock(r.launchAt,true)}<small id="launch-timer-${r.id}"></small></div></div>`).join('');
+    $('rally-share').hidden=!plan;
+    $('copy-rally').disabled=!plan;
+    $('rally-share-text').value=K.rallyShareText(plan,{title:t('shareTitle'),arrival:t('shareArrival'),launch:t('shareLaunch'),leader:n=>t('leaderName',{n})});
+    $('rally-timeline').innerHTML=!plan?`<div class="result-placeholder">${t('timelineEmpty')}</div>`:plan.rows.map((r,i)=>`<div class="timeline-row" id="launch-row-${r.id}"><span class="order">${i+1}</span><div><b>${esc(rowName(r))}</b><small>${t('rowDurations',{prepare:duration(r.prepareSeconds),march:duration(r.marchSeconds)})}</small></div><div class="time">${K.formatUtc(r.launchAt).slice(11)}<small>${K.formatUtc(r.launchAt).slice(0,10)}</small><small id="launch-timer-${r.id}"></small></div></div>`).join('');
   }
   function renderGuardTimeline(){
     txt('recorded-count',t('recordCount',{n:records.size}));const sorted=[...records.values()].sort((a,b)=>a.arrivalAt-b.arrivalAt);
@@ -89,10 +92,12 @@
   function alertAt(key,deadline,time,end){const d=(deadline-time)/1000;if(d>3||time>end)return;const stage=d<=0?'go':String(Math.ceil(d)),marker=`${key}:${stage}`;if(!fired.has(marker)){fired.add(marker);if(d>=-1)beep(stage==='go');}}
   function hero(kind,o){txt(`${kind}-state`,o.state);txt(`${kind}-next-name`,o.name);txt(`${kind}-countdown`,o.value);txt(`${kind}-instruction`,o.instruction);$(`${kind}-countdown`).classList.toggle('muted',!!o.muted);$(`${kind}-countdown`).classList.toggle('textual',/[^\d:.-]/.test(o.value));$(`${kind}-hero`).classList.toggle('go',!!o.go);$(`${kind}-hero`).classList.toggle('soon',!!o.soon);}
   function updateTimers(){
-    const time=now();txt('local-clock',clock(time));
+    const time=now();txt('local-clock',t('localClock',{time:clock(time)}));
+    txt('utc-clock',K.formatUtc(time,false));
+    $('utc-clock').dateTime=new Date(time).toISOString();
     if(plan){
-      txt('rally-arrival',clock(plan.target,true));const next=K.nextRallyInstruction(plan.rows,time);
-      if(next){const d=(next.launchAt-time)/1000,names=plan.rows.filter(r=>Math.abs(r.launchAt-next.launchAt)<1).map(r=>rowName(r)).join(' / ');hero('rally',{state:t(d<=0?'launchNow':d<=3?'launchSoon':'planActive'),name:t('nextGroup',{names}),value:d<=0?t('launch'):countdown(d),instruction:d<=0?t('launchInstruction'):t('launchAt',{time:clock(next.launchAt,true)}),go:d<=0,soon:d>0&&d<=3});}
+      txt('rally-arrival',K.formatUtc(plan.target));const next=K.nextRallyInstruction(plan.rows,time);
+      if(next){const d=(next.launchAt-time)/1000,names=plan.rows.filter(r=>Math.abs(r.launchAt-next.launchAt)<1).map(r=>rowName(r)).join(' / ');hero('rally',{state:t(d<=0?'launchNow':d<=3?'launchSoon':'planActive'),name:t('nextGroup',{names}),value:d<=0?t('launch'):countdown(d),instruction:d<=0?t('launchInstruction'):t('launchAt',{time:K.formatUtc(next.launchAt)}),go:d<=0,soon:d>0&&d<=3});}
       else if(time<plan.target)hero('rally',{state:t('allLaunched'),name:t('arrivalIn'),value:countdown((plan.target-time)/1000),instruction:t('checkLaunched')});
       else hero('rally',{state:t('roundOver'),name:t('arrivalReached'),value:t('arrived'),instruction:t('newPlan'),muted:true});
       for(const r of plan.rows){const d=(r.launchAt-time)/1000,row=$(`launch-row-${r.id}`);row?.classList.toggle('past',d< -1.2);row?.classList.toggle('active',next?.launchAt===r.launchAt);txt(`launch-timer-${r.id}`,d>0?t('launchIn',{time:countdown(d)}):t('launchPassed'));if(state.tab==='rally')alertAt(`rally:${plan.target}:${r.launchAt}`,r.launchAt,time,r.launchAt+1200);}
@@ -137,6 +142,16 @@
   }
   $('rally-lead').addEventListener('input',()=>{state.lead=$('rally-lead').value;dirtyPlan();save();});
   $('rally-target').addEventListener('input',()=>{state.target=$('rally-target').value;dirtyPlan();});
+  $('copy-rally').addEventListener('click',async()=>{
+    if(!plan)return;
+    const output=$('rally-share-text'),value=output.value;
+    try{await navigator.clipboard.writeText(value);toast('scheduleCopied');}
+    catch{
+      output.focus();output.select();output.setSelectionRange(0,value.length);
+      let copied=false;try{copied=document.execCommand('copy');}catch{}
+      toast(copied?'scheduleCopied':'copyFallback');
+    }
+  });
   $('start-rally').addEventListener('click',()=>{try{plan=K.makeRallyPlan(state.rally,now(),state.schedule==='fixed'?{target:new Date(state.target).getTime()}:{lead:state.lead});$('rally-dirty').hidden=true;$('stop-rally').disabled=false;showError('rally-error');clearNotice();renderRallyTimeline();updateTimers();syncDesktopAlarms();showResult('rally');toast('planToast');}catch(err){showError('rally-error',err,plan?'oldPlan':null);}});
   $('stop-rally').addEventListener('click',()=>{if(!confirm(t('stopConfirm')))return;plan=null;$('rally-dirty').hidden=true;$('stop-rally').disabled=true;renderRallyTimeline();updateTimers();syncDesktopAlarms();});
   $('own-march').addEventListener('input',applySettings);$('guard-margin').addEventListener('input',applySettings);

@@ -82,7 +82,18 @@
     if (recent && now - recent.launchAt < 1200) return recent;
     return rows.find(r => r.launchAt > now) || null;
   }
-  const api = {parseDuration, makeRallyPlan, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, nextRallyInstruction};
+  function formatUtc(time, milliseconds = true) {
+    const iso = new Date(time).toISOString();
+    return iso.slice(0, milliseconds ? 23 : 19).replace('T', ' ') + ' UTC';
+  }
+  function rallyShareText(plan, labels) {
+    if (!plan) return '';
+    const clean = value => String(value).replace(/\s+/g, ' ').trim();
+    return [labels.title, `${labels.arrival}: ${formatUtc(plan.target)}`, '', labels.launch,
+      ...plan.rows.map((r, i) => `${i + 1}. ${clean(r.name) || labels.leader(r.index + 1)} — ${formatUtc(r.launchAt)}`)
+    ].join('\n');
+  }
+  const api = {parseDuration, makeRallyPlan, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, nextRallyInstruction, formatUtc, rallyShareText};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KingshotTiming = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

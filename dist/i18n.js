@@ -1,6 +1,16 @@
 (function(root){
   "use strict";
   const catalogue = {
+  "localClock": ["本地 {time}", "Local {time}"],
+  "utcNow": ["当前 UTC 时间", "Current UTC time"],
+  "utcDevice": ["根据设备时钟换算", "Based on your device clock"],
+  "shareTitle": ["UTC 集结时间表", "UTC rally schedule"],
+  "copySchedule": ["一键复制时间表", "Copy schedule"],
+  "shareHint": ["复制当前生效的排程，直接粘贴给队友；以下均为发起集结的时间。", "Copy the active schedule and paste it to your team. Times below are when to start each rally."],
+  "shareArrival": ["共同到达", "Arrive together"],
+  "shareLaunch": ["发起集结时间（UTC）", "Start each rally (UTC)"],
+  "scheduleCopied": ["UTC 时间表已复制，可以粘贴给队友了", "UTC schedule copied. Paste it to your team."],
+  "copyFallback": ["自动复制未成功，已选中时间表，请手动复制", "Automatic copy failed. The schedule is selected; copy it manually."],
   "appTitle": [
     "Kingshot · 战术计时助手",
     "Kingshot · Timing Assistant"
@@ -54,8 +64,8 @@
     "Every second counts"
   ],
   "version": [
-    "独立辅助工具 · v0.2.2",
-    "Independent tool · v0.2.2"
+    "独立辅助工具 · v0.2.3",
+    "Independent tool · v0.2.3"
   ],
   "workbench": [
     "作战工作台",
