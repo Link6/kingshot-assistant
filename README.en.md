@@ -29,10 +29,10 @@ Example copied text:
 ```text
 Leader A 12:30:05 UTC
 Leader B 12:30:15 UTC
-Leader C 12:30:20.5 UTC
+Leader C 12:30:20 UTC
 ```
 
-Copied text contains only names and start times, with no dates, numbering, or shared arrival time. Fractional seconds are preserved when needed. After editing leaders or settings, generate the schedule again to apply your changes; until then, countdowns and copied text use the existing schedule.
+Copied text contains only names and start times, with no dates, numbering, or shared arrival time. Times use `HH:mm:ss UTC` without fractional seconds; internal timing retains its original precision. After editing leaders or settings, generate the schedule again to apply your changes; until then, countdowns and copied text use the existing schedule.
 
 ### Reinforce between attacks
 

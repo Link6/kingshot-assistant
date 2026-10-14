@@ -12,10 +12,13 @@ test('UTC display stays identical across device timezones, including midnight an
   }
   assert.equal(K.formatUtc(time,false),'2026-10-14 00:00:00 UTC');
 });
-test('shared plan contains only names and UTC launch times, preserving order across midnight and fractional precision',()=>{
+test('shared plan shows whole UTC seconds across midnight while preserving internal precision',()=>{
   I.setLanguage('en');
   const plan=K.makeRallyPlan([{id:'a',name:'A',prepare:'60',march:'30.5'},{id:'b',name:'B',prepare:'0',march:'5'}],Date.parse('2026-10-13T23:59:00Z'),{target:Date.parse('2026-10-14T00:01:00Z')});
-  assert.equal(K.rallyShareText(plan,labels()),'A 23:59:29.5 UTC\nB 00:00:55 UTC');
+  const original=JSON.stringify(plan);
+  assert.equal(K.rallyShareText(plan,labels()),'A 23:59:29 UTC\nB 00:00:55 UTC');
+  assert.equal(JSON.stringify(plan),original);
+  assert.equal(plan.rows[0].launchAt%1000,500);
 });
 test('export preserves the active plan, localizes default names, and keeps one line per leader',()=>{
   const rows=[{id:'a',name:'',prepare:'0',march:'5'},{id:'b',name:' Team\nB ',prepare:'60',march:'5'}];

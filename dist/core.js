@@ -90,7 +90,7 @@
     if (!plan) return '';
     const clean = value => String(value).replace(/\s+/g, ' ').trim();
     return plan.rows.map(r => {
-      const time = new Date(r.launchAt).toISOString().slice(11, 23).replace(/\.?0+$/, '');
+      const time = new Date(r.launchAt).toISOString().slice(11, 19);
       return `${clean(r.name) || labels.leader(r.index + 1)} ${time} UTC`;
     }).join('\n');
   }
