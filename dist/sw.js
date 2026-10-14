@@ -1,6 +1,6 @@
 // Each project on the same github.io origin owns only its own cache namespace.
 const PREFIX=`kingshot:${self.registration.scope}:`;
-const CACHE=PREFIX+'v0.2.5-copy-seconds';
+const CACHE=PREFIX+'v0.2.6';
 const ASSETS=['./','./index.html','./styles.css','./i18n.js','./core.js','./app.js','./icon.svg','./manifest.webmanifest'];
 const URLs=new Set(ASSETS.map(p=>new URL(p,self.registration.scope).href));
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});

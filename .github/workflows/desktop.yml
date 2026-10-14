@@ -32,6 +32,8 @@ jobs:
       - run: npm run ${{ matrix.script }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Verify packaged MIT license
+        run: node scripts/verify-packaged-license.cjs
       - name: Verify packaged Windows app
         if: runner.os == 'Windows'
         shell: pwsh

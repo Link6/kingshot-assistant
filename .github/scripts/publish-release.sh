@@ -18,11 +18,12 @@ files=("${windows[@]}" "${mac[@]}" "${linux[@]}")
 for file in "${files[@]}"; do
   [[ -s "$file" && "$file" == *"$version"* ]] || { echo "Invalid release asset: $file"; exit 1; }
 done
+cp LICENSE release-assets/LICENSE
 (
   cd release-assets
-  sha256sum -- *.exe *.dmg *.AppImage > SHA256SUMS.txt
+  sha256sum -- *.exe *.dmg *.AppImage LICENSE > SHA256SUMS.txt
 )
-files+=(release-assets/SHA256SUMS.txt)
+files+=(release-assets/LICENSE release-assets/SHA256SUMS.txt)
 
 # Keep partial uploads in a draft so a failed job can be retried safely.
 if draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft' 2>/dev/null); then
