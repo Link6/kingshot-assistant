@@ -57,6 +57,12 @@ Each leader in **Rally sync** and **Reinforcements** has an independent pet esti
 - Enter a revised elapsed duration and click **Apply new estimate** to correct it. Once you confirm the effect has ended, click **Mark as ended** to clear that leader's timer and reminder.
 - Pet estimates use absolute timestamps saved locally, so reloading, switching languages, regenerating schedules, or recording attacks again does not restart them. A significant device-clock change prompts you to review the estimate.
 
+### Add to your phone's home screen
+
+Mobile browsers show an **Add to Home Screen** suggestion. Supporting Android browsers provide an install button; iPhone users can view the Safari **Share → Add to Home Screen** steps. Embedded browsers such as WeChat direct you to open the page in your system browser first.
+
+**Not now** hides automatic suggestions for 7 days. You can reopen the guide from **Add to Home Screen** in the footer. The suggestion is hidden when launched as a standalone home-screen app or in Electron. Installation options vary by browser; installing does not remove background timing or sound-alert limitations.
+
 ## Run locally
 
 Requires Node.js 24 or later. The website has no third-party runtime dependencies, so `npm ci` is not required to serve it.

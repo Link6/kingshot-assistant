@@ -1,6 +1,14 @@
 (function(root){
   "use strict";
   const catalogue = {
+  "installTitle": ["添加到主屏幕", "Add to Home Screen"],
+  "installBenefit": ["下次直接点图标打开，计时更方便。", "Open from your home screen next time for quick access."],
+  "installNow": ["安装到主屏幕", "Install app"],
+  "installHow": ["查看方法", "Show steps"],
+  "installLater": ["暂不提醒", "Not now"],
+  "installIOS": ["在 Safari 中打开此页面，点击「分享」→「添加到主屏幕」→「添加」。如果看到「作为网页 App 打开」，请开启。", "Open this page in Safari. Tap Share → Add to Home Screen → Add. If you see Open as Web App, turn it on."],
+  "installAndroid": ["打开浏览器菜单（⋮），选择「安装应用」或「添加到主屏幕」。若没有该选项，可尝试用 Chrome 打开此页面。", "Open the browser menu (⋮) and choose Install app or Add to Home Screen. If neither is available, try opening this page in Chrome."],
+  "installEmbedded": ["请先通过右上角菜单选择「在浏览器中打开」。iPhone 使用 Safari，安卓可使用 Chrome，再添加到主屏幕。", "Use the top-right menu to open this page in your browser: Safari on iPhone or Chrome on Android. Then add it to your home screen."],
   "rallyPetTitle": ["车头宠物 · 估计计时", "Leader pet · estimated timer"],
   "rallyPetReminderTitle": ["集结车头宠物可能即将或已经结束", "Rally leader pet effect may be ending or have ended"],
   "rallyPetReminder": ["{names}：请核对游戏中的行军时间，更新后重新生成集结排程。", "{names}: check march times in the game, update them, then regenerate the rally schedule."],

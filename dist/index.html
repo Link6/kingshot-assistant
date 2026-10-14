@@ -9,8 +9,12 @@
   <title data-i18n="appTitle">Kingshot · 战术计时助手</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Kingshot">
   <link rel="stylesheet" href="styles.css">
   <script src="i18n.js" defer></script>
+  <script src="install.js" defer></script>
   <script src="core.js" defer></script>
   <script src="app.js" defer></script>
 </head>
@@ -28,6 +32,12 @@
   <main>
     <header class="topbar"><span class="breadcrumb"><span data-i18n="workbench">作战工作台</span> <span>/</span> <b id="breadcrumb-current"><span data-i18n="rally">集结同步</span></b></span><div class="toolbar"><select id="language-select" aria-label="Language / 语言"><option value="zh-CN">简体中文</option><option value="en">English</option></select><button id="pin-toggle" class="button ghost small" aria-pressed="false" hidden></button><span class="local-clock" id="local-clock"></span><button id="sound-toggle" class="button ghost small" aria-pressed="true"><span data-i18n="soundOn">♪ 声音已开</span></button><button id="focus-toggle" class="button ghost small"><span data-i18n="focus">⛶ 专注模式</span></button></div></header>
     <div class="content">
+      <section id="install-banner" class="install-banner" aria-labelledby="install-title" hidden>
+        <img src="icon-192.png" width="44" height="44" alt="">
+        <div class="install-copy"><strong id="install-title" data-i18n="installTitle">添加到主屏幕</strong><p data-i18n="installBenefit">下次直接点图标打开，计时更方便。</p></div>
+        <div class="install-actions"><button id="install-action" class="button secondary" aria-controls="install-help" aria-expanded="false">查看方法</button><button id="install-dismiss" class="text-button subtle" data-i18n="installLater">暂不提醒</button></div>
+        <p id="install-help" class="install-help" hidden></p>
+      </section>
       <div class="utc-strip"><div><span data-i18n="utcNow">当前 UTC 时间</span><time id="utc-clock">—</time></div><small data-i18n="utcDevice">根据设备时钟换算</small></div>
       <section class="pet-reminders" id="rally-pet-reminders" role="status" aria-live="polite" hidden><div><strong data-i18n="rallyPetReminderTitle">集结车头宠物可能即将或已经结束</strong><p id="rally-pet-reminder-text"></p></div><button class="button secondary" id="rally-pet-update-march" data-i18n="petUpdateMarch">去更新行军时间</button></section>
       <section class="pet-reminders" id="pet-reminders" role="status" aria-live="polite" hidden><div><strong data-i18n="petReminderTitle">宠物可能即将或已经结束</strong><p id="pet-reminder-text"></p></div><button class="button secondary" id="pet-update-march" data-i18n="petUpdateMarch">去更新行军时间</button></section>
@@ -62,7 +72,7 @@
           </div>
         </div>
       </section>
-      <footer class="page-footer"><span><span class="status-dot"></span> <span data-i18n="saveFooter">常用输入保存在本机，刷新后请重新记录战况</span></span><button class="text-button subtle" id="clear-page"><span data-i18n="clear">清空当前功能</span></button></footer>
+      <footer class="page-footer"><span><span class="status-dot"></span> <span data-i18n="saveFooter">常用输入保存在本机，刷新后请重新记录战况</span></span><button class="text-button subtle" id="install-entry" data-i18n="installTitle" hidden>添加到主屏幕</button><button class="text-button subtle" id="clear-page"><span data-i18n="clear">清空当前功能</span></button></footer>
       <div class="foreground-note"><span data-i18n="foreground">实战请保持页面在前台。锁屏或切换应用可能错过声音提醒；实际结果取决于游戏延迟和操作时刻。</span></div>
     </div>
   </main>
