@@ -1,11 +1,12 @@
 (function(root){
   "use strict";
   const catalogue = {
-  "installTitle": ["添加到主屏幕", "Add to Home Screen"],
-  "installBenefit": ["下次直接点图标打开，计时更方便。", "Open from your home screen next time for quick access."],
-  "installNow": ["安装到主屏幕", "Install app"],
-  "installHow": ["查看方法", "Show steps"],
-  "installLater": ["暂不提醒", "Not now"],
+  "installTitle": ["安装帮助", "Installation help"],
+  "installBenefit": ["当前浏览器未提供安装弹窗，可按下面的方法操作。", "An install prompt is not currently available. Try the steps below."],
+  "installNow": ["安装应用", "Install app"],
+  "installHelp": ["安装帮助", "Installation help"],
+  "installClose": ["关闭", "Close"],
+  "installDesktop": ["请使用浏览器地址栏中的安装图标，或在浏览器菜单中查找「安装应用」。", "Use the install icon in the browser address bar, or look for Install app in the browser menu."],
   "installIOS": ["在 Safari 中打开此页面，点击「分享」→「添加到主屏幕」→「添加」。如果看到「作为网页 App 打开」，请开启。", "Open this page in Safari. Tap Share → Add to Home Screen → Add. If you see Open as Web App, turn it on."],
   "installAndroid": ["打开浏览器菜单（⋮），选择「安装应用」或「添加到主屏幕」。若没有该选项，可尝试用 Chrome 打开此页面。", "Open the browser menu (⋮) and choose Install app or Add to Home Screen. If neither is available, try opening this page in Chrome."],
   "installEmbedded": ["请先通过右上角菜单选择「在浏览器中打开」。iPhone 使用 Safari，安卓可使用 Chrome，再添加到主屏幕。", "Use the top-right menu to open this page in your browser: Safari on iPhone or Chrome on Android. Then add it to your home screen."],

@@ -59,9 +59,9 @@ Each leader in **Rally sync** and **Reinforcements** has an independent pet esti
 
 ### Add to your phone's home screen
 
-Mobile browsers show an **Add to Home Screen** suggestion. Supporting Android browsers provide an install button; iPhone users can view the Safari **Share → Add to Home Screen** steps. Embedded browsers such as WeChat direct you to open the page in your system browser first.
+The browser's native installation promotion stays enabled: the app does not cancel `beforeinstallprompt` or automatically show a custom banner. When the browser offers installation, **Install app** appears in the footer and directly opens the native install prompt when clicked, on both Android and desktop browsers.
 
-**Not now** hides automatic suggestions for 7 days. You can reopen the guide from **Add to Home Screen** in the footer. The suggestion is hidden when launched as a standalone home-screen app or in Electron. Installation options vary by browser; installing does not remove background timing or sound-alert limitations.
+The browser controls whether and when automatic installation prompts appear, including after dismissal. The app does not force a prompt on page load or unrelated clicks. Mobile browsers without a native prompt offer **Installation help** in the footer, with Safari steps for iPhone and external-browser instructions for embedded browsers. Installation controls are hidden in standalone mode and Electron. Installing does not remove background timing or sound-alert limitations.
 
 ## Run locally
 
