@@ -74,7 +74,8 @@
     $(`enemy-live-${rec.id}`).querySelectorAll('[data-adjust="prepare"]').forEach(button=>button.disabled=live.stage!=='gathering');
   }
   function renderRallyTimeline(){
-    $('rally-share').hidden=!plan;
+    $('rally-share-text').hidden=!plan;
+    txt('share-hint',t(plan?'shareHint':'shareEmpty'));
     $('copy-rally').disabled=!plan;
     $('rally-share-text').value=K.rallyShareText(plan,{title:t('shareTitle'),arrival:t('shareArrival'),launch:t('shareLaunch'),leader:n=>t('leaderName',{n})});
     $('rally-timeline').innerHTML=!plan?`<div class="result-placeholder">${t('timelineEmpty')}</div>`:plan.rows.map((r,i)=>`<div class="timeline-row" id="launch-row-${r.id}"><span class="order">${i+1}</span><div><b>${esc(rowName(r))}</b><small>${t('rowDurations',{prepare:duration(r.prepareSeconds),march:duration(r.marchSeconds)})}</small></div><div class="time">${K.formatUtc(r.launchAt).slice(11)}<small>${K.formatUtc(r.launchAt).slice(0,10)}</small><small id="launch-timer-${r.id}"></small></div></div>`).join('');
@@ -162,7 +163,7 @@
   $('rally-example').addEventListener('click',()=>{if(state.rally.length&&!confirm(t('rallyExampleConfirm')))return;state.rally=[{...fresh('rally','A'),march:'35'},{...fresh('rally','B'),march:'25'},{...fresh('rally','C'),prepare:'1:00',march:'40'}];plan=null;$('rally-dirty').hidden=true;$('stop-rally').disabled=true;setSchedule('auto');showError('rally-error');renderRallyRows();renderRallyTimeline();updateTimers();syncDesktopAlarms();save();toast('rallyExampleToast');});
   $('guard-example').addEventListener('click',()=>{if(state.guard.length&&!confirm(t('guardExampleConfirm')))return;records.clear();state.guard=[{...fresh('guard','A'),prepare:'1:00',march:'35'},{...fresh('guard','B'),prepare:'1:00',march:'38'}];renderGuardRows();computeGuard();save();toast('guardExampleToast');});
   $('clear-page').addEventListener('click',()=>{const kind=state.tab;if(!confirm(t('clearConfirm',{tool:t(kind)})))return;state[kind]=[];if(kind==='rally'){plan=null;state.lead='10';state.target='';$('rally-lead').value='10';$('rally-target').value='';setSchedule('auto');$('rally-dirty').hidden=true;$('stop-rally').disabled=true;showError('rally-error');renderRallyRows();renderRallyTimeline();}else{records.clear();state.own=validOwn='29';state.margin=validMargin='0.2';$('own-march').value='29';$('guard-margin').value='0.2';settingsValid=true;showError('guard-settings-error');renderGuardRows();computeGuard();}clearNotice();syncControls();save();updateTimers();syncDesktopAlarms();toast('cleared');});
-  restore();I.apply();$('own-march').value=state.own;$('guard-margin').value=state.margin;$('rally-lead').value=state.lead;syncControls();renderRallyRows();renderGuardRows();computeGuard();setTab(location.hash==='#guard'?'guard':'rally');
+  restore();I.apply();$('own-march').value=state.own;$('guard-margin').value=state.margin;$('rally-lead').value=state.lead;syncControls();renderRallyRows();renderRallyTimeline();renderGuardRows();computeGuard();setTab(location.hash==='#guard'?'guard':'rally');
   setInterval(()=>{const wall=Date.now(),mono=performance.now();if(Math.abs((wall-previousWall)-(mono-previousMono))>3000||wall-previousWall>10000)invalidateSession();previousWall=wall;previousMono=mono;updateTimers();},100);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateTimers();});window.addEventListener('hashchange',()=>setTab(location.hash==='#guard'?'guard':'rally'));
   if(desktop){$('pin-toggle').hidden=false;desktop.onResume(()=>{invalidateSession();previousWall=Date.now();previousMono=performance.now();});desktop.getWindowState().then(s=>{state.pinned=s.pinned;syncControls();}).catch(()=>{});}

@@ -6,6 +6,7 @@
   "utcDevice": ["根据设备时钟换算", "Based on your device clock"],
   "shareTitle": ["UTC 集结时间表", "UTC rally schedule"],
   "copySchedule": ["一键复制时间表", "Copy schedule"],
+  "shareEmpty": ["先填写车头名单，点击「生成开车倒计时」，即可在这里一键复制所有车头的 UTC 发起时间。", "Fill in your leaders and click “Generate countdowns” to copy everyone's UTC rally start times here."],
   "shareHint": ["复制当前生效的排程，直接粘贴给队友；以下均为发起集结的时间。", "Copy the active schedule and paste it to your team. Times below are when to start each rally."],
   "shareArrival": ["共同到达", "Arrive together"],
   "shareLaunch": ["发起集结时间（UTC）", "Start each rally (UTC)"],
