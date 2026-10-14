@@ -2,7 +2,7 @@
 
 **简体中文** | [English](README.en.md)
 
-[在线使用](https://link6.github.io/kingshot-assistant/) · [桌面版构建](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml)
+[在线使用](https://link6.github.io/kingshot-assistant/) · [下载桌面版](https://github.com/Link6/kingshot-assistant/releases/latest) · [桌面版构建](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml)
 
 Kingshot 集结同步与王城补兵计时助手，支持中文、英文和 Electron 桌面版。无需账号，计算在设备本地完成，常用输入自动保存在本机。
 
@@ -66,6 +66,8 @@ npm test
 
 ## Electron 桌面版
 
+直接使用请前往 [Releases](https://github.com/Link6/kingshot-assistant/releases/latest) 下载对应系统的可执行文件。Windows 提供安装版和免安装便携版，下载后无需安装 Node.js。
+
 安装开发依赖并启动：
 
 ```sh
@@ -83,7 +85,7 @@ npm run desktop
 
 安装依赖时需要下载 Electron 运行时，打包也可能需要下载构建工具。成品输出至 `desktop-release/`。当前未配置代码签名、macOS 公证和自动更新。
 
-也可在 GitHub Actions 的 [Build desktop apps](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml) 页面手动运行工作流。完成后，在该次运行的 Artifacts 区域下载对应的 `desktop-windows-latest`、`desktop-macos-latest` 或 `desktop-ubuntu-latest`。推送 `v*` 标签也会触发桌面构建。
+也可在 GitHub Actions 的 [Build desktop apps](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml) 页面手动运行工作流。完成后，在该次运行的 Artifacts 区域下载对应的 `desktop-windows-latest`、`desktop-macos-latest` 或 `desktop-ubuntu-latest`。推送与 `package.json` 版本一致的 `v*` 标签时，三个平台构建通过后会自动发布 Release，附上可执行文件和 SHA-256 校验值；发布说明保存在 `release-notes/<标签>.md`。
 
 ## GitHub Pages 部署
 

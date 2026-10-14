@@ -24,6 +24,9 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+      - name: Check release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: node -e "if (process.env.GITHUB_REF_NAME !== 'v' + require('./package.json').version) throw new Error('Release tag must match package.json version')"
       - run: npm ci
       - run: npm test
       - run: npm run ${{ matrix.script }}
@@ -48,3 +51,22 @@ jobs:
             desktop-release/*.dmg
             desktop-release/*.AppImage
           if-no-files-found: error
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: release-assets
+          merge-multiple: true
+      - name: Publish release with executable files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: bash .github/scripts/publish-release.sh

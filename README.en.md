@@ -2,7 +2,7 @@
 
 [简体中文](README.md) | **English**
 
-[Open the app](https://link6.github.io/kingshot-assistant/) · [Desktop builds](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml)
+[Open the app](https://link6.github.io/kingshot-assistant/) · [Download desktop app](https://github.com/Link6/kingshot-assistant/releases/latest) · [Desktop builds](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml)
 
 A rally coordination and castle reinforcement timing assistant for Kingshot, with Chinese and English interfaces and an Electron desktop app. No account is required. Calculations run on your device, and common inputs are saved locally.
 
@@ -66,6 +66,8 @@ npm test
 
 ## Electron desktop app
 
+To use the app, download the executable for your system from [Releases](https://github.com/Link6/kingshot-assistant/releases/latest). Windows offers an installer and a portable version. Node.js is not required to run these downloads.
+
 Install development dependencies and start the app:
 
 ```sh
@@ -83,7 +85,7 @@ Build on the corresponding operating system:
 
 Installing dependencies downloads the Electron runtime, and packaging may download additional build tools. Output is written to `desktop-release/`. Code signing, macOS notarization, and automatic updates are not configured.
 
-Alternatively, manually run [Build desktop apps](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml) in GitHub Actions. After the run completes, download `desktop-windows-latest`, `desktop-macos-latest`, or `desktop-ubuntu-latest` from its Artifacts section. Pushing a `v*` tag also triggers desktop builds.
+Alternatively, manually run [Build desktop apps](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml) in GitHub Actions. After the run completes, download `desktop-windows-latest`, `desktop-macos-latest`, or `desktop-ubuntu-latest` from its Artifacts section. Pushing a `v*` tag that matches the version in `package.json` automatically publishes a Release after all three platforms build successfully, attaching the executables and SHA-256 checksums. Release notes are stored in `release-notes/<tag>.md`.
 
 ## Deploy to GitHub Pages
 
