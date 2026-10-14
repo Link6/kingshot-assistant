@@ -46,14 +46,14 @@ The input fields remain available for the next recording. Recording again replac
 
 Supported duration formats include `5:00`, `35`, `29.5s`, and `4m 40s`. Plain numbers are interpreted as seconds.
 
-### Estimate enemy pet timers
+### Estimate leader pet timers
 
-Each enemy leader has an independent **Enemy pet · estimated timer**. When you notice an active pet, enter your estimate of how many minutes it has already been active and click **Pet seen active**. Enter `0` if unsure: this estimates the latest end from the observation time, and the effect may end sooner.
+Each leader in **Rally sync** and **Reinforcements** has an independent pet estimate timer. When you notice an active pet, enter your estimate of how many minutes it has already been active and click **Pet seen active**. Enter `0` if unsure: this estimates the latest end from the observation time, and the effect may end sooner.
 
 - Uses a 2-hour duration and shows a yellow reminder **5 minutes** before the estimated end. With sound enabled, it plays one cue; the desktop app also schedules a background reminder.
-- The reminder names the affected leaders. **Update march time** takes you to the input. Check the actual game reading, update the march time, and record the attack again. The assistant does not automatically calculate movement speed after the pet effect ends.
+- The reminder names the affected leaders. **Update march time** takes you to the input. Check the actual game reading, update the march time, then regenerate the rally schedule or record the enemy attack again, depending on the tool. The assistant does not automatically calculate movement speed after the pet effect ends.
 - Enter a revised elapsed duration and click **Apply new estimate** to correct it. Once you confirm the effect has ended, click **Mark as ended** to clear that leader's timer and reminder.
-- Pet estimates use absolute timestamps saved locally, so reloading, switching languages, or recording attacks again does not restart them. A significant device-clock change prompts you to review the estimate.
+- Pet estimates use absolute timestamps saved locally, so reloading, switching languages, regenerating schedules, or recording attacks again does not restart them. A significant device-clock change prompts you to review the estimate.
 
 ## Run locally
 

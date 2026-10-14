@@ -40,11 +40,24 @@ test('invalid elapsed inputs and malformed saved estimates are rejected',()=>{
   assert.equal(K.petTiming(K.makePetEstimate('120',now),now).stage,'expired');
   for(const value of [null,{}, {observedAt:now,startedAt:now+1},{observedAt:now,startedAt:now-7200001},{observedAt:1e100,startedAt:1e100}])assert.equal(K.restorePetEstimate(value),null);
 });
-test('desktop pet reminders fire once without exceeding the alarm limit for thirty enemies',()=>{
+test('desktop supports sixty pet timers plus thirty rally alarms and fires reminders once',()=>{
   const q=new AlarmQueue(),pet=K.petTiming(K.makePetEstimate('0',now),now);
-  const events=Array.from({length:30},(_,i)=>({id:'pet:'+i,at:pet.warnAt,expiresAt:pet.end,title:'Check march time',body:'Enemy '+i}));
-  events.push(...Array.from({length:29},(_,i)=>({id:'guard:'+i,at:pet.end+10000,expiresAt:pet.end+11000,title:'Send',body:''})));
-  q.replace(events);assert.equal(q.due(pet.warnAt-1).length,0);assert.equal(q.due(pet.warnAt).length,30);
+  const events=Array.from({length:60},(_,i)=>({id:'pet:'+i,at:pet.warnAt,expiresAt:pet.end,title:'Check march time',body:'Leader '+i}));
+  events.push(...Array.from({length:30},(_,i)=>({id:'rally:'+i,at:pet.end+10000,expiresAt:pet.end+11000,title:'Launch',body:''})));
+  q.replace(events);assert.equal(q.due(pet.warnAt-1).length,0);assert.equal(q.due(pet.warnAt).length,60);
   q.replace(events.map(e=>({...e,title:'核对行军时间'})));assert.equal(q.due(pet.warnAt+1).length,0);
   q.replace([]);assert.equal(q.due(pet.end).length,0);
+});
+
+test('rally schedules do not restart pet estimates and changing a pet does not change launch times',()=>{
+  const pet=K.makePetEstimate('116',now);
+  const row={id:'a',name:'A',prepare:'60',march:'35',pet};
+  const first=K.makeRallyPlan([row],now,{lead:'10'});
+  row.pet=K.makePetEstimate('110',now);
+  const second=K.makeRallyPlan([row],now,{lead:'10'});
+  assert.equal(first.rows[0].launchAt,second.rows[0].launchAt);
+  assert.equal(first.target,second.target);
+  const startedAt=row.pet.startedAt;
+  K.makeRallyPlan([row],now+1000,{lead:'10'});
+  assert.equal(row.pet.startedAt,startedAt);
 });

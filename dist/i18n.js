@@ -1,6 +1,9 @@
 (function(root){
   "use strict";
   const catalogue = {
+  "rallyPetTitle": ["车头宠物 · 估计计时", "Leader pet · estimated timer"],
+  "rallyPetReminderTitle": ["集结车头宠物可能即将或已经结束", "Rally leader pet effect may be ending or have ended"],
+  "rallyPetReminder": ["{names}：请核对游戏中的行军时间，更新后重新生成集结排程。", "{names}: check march times in the game, update them, then regenerate the rally schedule."],
   "petTitle": ["敌方宠物 · 估计计时", "Enemy pet · estimated timer"],
   "petElapsed": ["估计已开启（分钟）", "Estimated minutes already active"],
   "petStart": ["发现已开宠物", "Pet seen active"],
@@ -82,8 +85,8 @@
     "Every second counts"
   ],
   "version": [
-    "独立辅助工具 · v0.2.4",
-    "Independent tool · v0.2.4"
+    "独立辅助工具 · v0.2.5",
+    "Independent tool · v0.2.5"
   ],
   "workbench": [
     "作战工作台",

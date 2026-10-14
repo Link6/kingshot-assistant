@@ -33,5 +33,5 @@ test('desktop alerts fire once, preserve deduplication across language changes a
 });
 test('desktop alarm IPC data is bounded and validated',()=>{
   const q=new AlarmQueue();assert.throws(()=>q.replace({}));assert.throws(()=>q.replace([{id:'a',at:NaN,expiresAt:1,title:'x',body:''}]));
-  assert.throws(()=>q.replace(Array(61).fill({id:'a',at:1,expiresAt:2,title:'x',body:''})));
+  assert.throws(()=>q.replace(Array(91).fill({id:'a',at:1,expiresAt:2,title:'x',body:''})));
 });
