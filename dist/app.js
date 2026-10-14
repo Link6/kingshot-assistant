@@ -47,7 +47,11 @@
   function renderGuardRows(){
     txt('guard-count',state.guard.length);$('guard-empty').hidden=!!state.guard.length;$('add-guard').disabled=state.guard.length>=30;
     $('guard-rows').innerHTML=state.guard.map((r,i)=>`<div class="person-row guard-row" data-id="${r.id}"><div class="row-title"><span class="row-number">${String(i+1).padStart(2,'0')}</span><input data-field="name" aria-label="${esc(t('enemyName',{n:i+1})+' '+t('name'))}" placeholder="${t('enemyPlaceholder')}" value="${esc(r.name)}" maxlength="40"><button class="delete-row" data-delete aria-label="${esc(t('deleteEnemy',{n:i+1}))}">×</button></div><div class="row-toolbar"><div class="mode-toggle" role="group" aria-label="${t('stage')}"><button data-mode="gathering" class="${r.mode==='gathering'?'selected':''}" aria-pressed="${r.mode==='gathering'}">${t('gathering')}</button><button data-mode="marching" class="${r.mode==='marching'?'selected':''}" aria-pressed="${r.mode==='marching'}">${t('marching')}</button></div><span class="record-status" id="record-status-${r.id}"></span></div><div class="field-grid ${r.mode==='marching'?'marching':''}">${r.mode==='gathering'?`<label>${t('prepareRemaining')}<span class="input-unit"><input data-field="prepare" value="${esc(r.prepare)}" placeholder="${t('example440')}"><span>${t('time')}</span></span></label>`:''}<label>${t(r.mode==='marching'?'marchRemaining':'marchFull')}<span class="input-unit"><input data-field="march" value="${esc(r.march)}" placeholder="${t('example35')}"><span>${t('seconds')}</span></span></label></div><div class="form-error" id="guard-error-${r.id}" role="alert" hidden></div><button class="record-button" data-record><span id="record-label-${r.id}"></span><span>↗</span></button><div class="record-caption" id="record-caption-${r.id}"></div></div>`).join('');
-    state.guard.forEach(updateGuardRow);
+    state.guard.forEach(r=>{
+      const controls=field=>[-1,-0.1,0.1,1].map(delta=>`<button type="button" data-adjust="${field}" data-delta="${delta}" aria-label="${esc(t(field==='prepare'?'adjustPrepare':'adjustMarch',{delta:(delta>0?'+':'')+delta}))}">${delta>0?'+':'−'}${Math.abs(delta)}${t('seconds')}</button>`).join('');
+      $(`record-caption-${r.id}`).insertAdjacentHTML('afterend',`<section class="enemy-live" id="enemy-live-${r.id}" aria-label="${t('liveTiming')}" hidden><div class="enemy-live-heading"><b>${t('liveTiming')}</b><span id="enemy-stage-${r.id}"></span></div><div class="enemy-clock" id="enemy-prepare-group-${r.id}"><div><span>${t('prepareRemaining')}</span><strong id="enemy-prepare-${r.id}"></strong></div><div class="time-nudges" role="group" aria-label="${t('prepareAdjust')}">${controls('prepare')}</div></div><div class="enemy-clock"><div><span id="enemy-march-label-${r.id}"></span><strong id="enemy-march-${r.id}"></strong></div><div class="time-nudges" role="group" aria-label="${t('marchAdjust')}">${controls('march')}</div></div><p>${t('adjustHelp')}</p><p id="enemy-adjust-note-${r.id}" role="status"></p></section>`);
+      updateGuardRow(r);
+    });
     for(const [id,{err,suffix}] of errors)if(id.startsWith('guard-error-'))showError(id,err,suffix);
   }
   function updateGuardRow(r){
@@ -56,6 +60,18 @@
     let reading;try{reading=duration(K.parseDuration(r.mode==='marching'?r.march:r.prepare));}catch{reading=t('reading');}
     txt(`record-label-${r.id}`,t('recordLabel',{action:t(rec?'rerecord':'record'),reading}));
     txt(`record-caption-${r.id}`,rec?t('recordDetails',{recorded:clock(rec.recordedAt,true),arrival:clock(rec.arrivalAt,true),dirty:edited?t('usingPrevious'):''}):t(r.mode==='marching'?'marchHelp':'recordHelp'));
+    $(`enemy-live-${r.id}`).hidden=!rec;
+    txt(`enemy-adjust-note-${r.id}`,rec?.adjusted?t('adjustApplied',{time:clock(rec.arrivalAt,true)}):'');
+    if(rec)updateEnemyClock(rec,now());
+  }
+  function updateEnemyClock(rec,time){
+    const live=K.enemyCountdown(rec,time);
+    txt(`enemy-stage-${rec.id}`,t(live.stage==='arrived'?'attackPassed':live.stage));
+    $(`enemy-prepare-group-${rec.id}`).hidden=rec.mode==='marching';
+    txt(`enemy-prepare-${rec.id}`,countdown(live.prepare));
+    txt(`enemy-march-label-${rec.id}`,t(live.stage==='gathering'?'marchFull':'marchRemaining'));
+    txt(`enemy-march-${rec.id}`,countdown(live.march));
+    $(`enemy-live-${rec.id}`).querySelectorAll('[data-adjust="prepare"]').forEach(button=>button.disabled=live.stage!=='gathering');
   }
   function renderRallyTimeline(){
     $('rally-timeline').innerHTML=!plan?`<div class="result-placeholder">${t('timelineEmpty')}</div>`:plan.rows.map((r,i)=>`<div class="timeline-row" id="launch-row-${r.id}"><span class="order">${i+1}</span><div><b>${esc(rowName(r))}</b><small>${t('rowDurations',{prepare:duration(r.prepareSeconds),march:duration(r.marchSeconds)})}</small></div><div class="time">${clock(r.launchAt,true)}<small id="launch-timer-${r.id}"></small></div></div>`).join('');
@@ -84,7 +100,7 @@
     const w=K.nextWindow(windows,time);
     if(w){const d=(w.midpoint-time)/1000,go=time>=w.midpoint;hero('guard',{state:t(go?'sendNow':time>=w.start?'sendOpen':d<=3?'sendSoon':'waitingSend'),name:t('between',{before:rowName(w.before,'guard'),after:rowName(w.after,'guard')}),value:go?t('sendNow'):countdown(d),instruction:go?t('sendLeft',{time:countdown((w.end-time)/1000)}):t('sendAt',{time:clock(w.midpoint,true)}),go,soon:d>0&&d<=3});txt('guard-departure',`${clock(w.start,true)} – ${clock(w.end,true)}`);txt('guard-width',duration(w.width));if(state.tab==='guard')alertAt(`guard:${w.id}`,w.midpoint,time,w.end);}
     else{let instruction='twoNeeded',name='waitingEnemy',status='waitingRecord';if(records.size===1){name='needAnother';instruction='needAnotherHint';}else if(records.size>=2){status='noWindow';if(windows.some(w=>w.usable)){name='missed';instruction='missedHint';}else{name='gapShort';instruction='gapShortHint';}}hero('guard',{state:t(status),name:t(name),value:'--:--',instruction:t(instruction),muted:true});txt('guard-departure',t('noTime'));txt('guard-width','—');}
-    for(const r of records.values()){const d=(r.arrivalAt-time)/1000;txt(`attack-timer-${r.id}`,d>0?t('attackIn',{time:countdown(d)}):t('attackPassed'));$(`attack-row-${r.id}`)?.classList.toggle('past',d<=0);}
+    for(const r of records.values()){const d=(r.arrivalAt-time)/1000;txt(`attack-timer-${r.id}`,d>0?t('attackIn',{time:countdown(d)}):t('attackPassed'));$(`attack-row-${r.id}`)?.classList.toggle('past',d<=0);updateEnemyClock(r,time);}
     windows.forEach((w,i)=>$(`window-${i}`)?.classList.toggle('expired',w.end<=time));
   }
   function syncDesktopAlarms(){
@@ -112,7 +128,8 @@
       const holder=e.target.closest('[data-id]');if(!holder)return;const id=holder.dataset.id,r=state[kind].find(r=>r.id===id);
       if(e.target.closest('[data-delete]')){if((records.has(id)||(kind==='rally'&&plan))&&!confirm(t('deleteConfirm')))return;state[kind]=state[kind].filter(r=>r.id!==id);errors.delete(`guard-error-${id}`);if(kind==='rally'){dirtyPlan();renderRallyRows();}else{records.delete(id);renderGuardRows();computeGuard();}save();return;}
       const mode=e.target.closest('[data-mode]');if(mode){r.mode=mode.dataset.mode;renderGuardRows();save();return;}
-      if(e.target.closest('[data-record]')){const recordedAt=now();try{const snapshot=K.recordEnemy(r,recordedAt);snapshot.index=state.guard.indexOf(r);snapshot.draft=JSON.stringify(r);records.set(id,snapshot);showError(`guard-error-${id}`);updateGuardRow(r);clearNotice();computeGuard();toast('recordToast',{name:rowName(snapshot,'guard'),time:clock(snapshot.arrivalAt,true)});if(records.size===2&&K.nextWindow(windows,now()))showResult('guard');}catch(err){showError(`guard-error-${id}`,err,records.has(id)?'oldRecord':null);}}
+      const adjust=e.target.closest('[data-adjust]');if(adjust){const rec=records.get(id);if(!rec)return;try{const updated=K.adjustEnemy(rec,adjust.dataset.adjust,Number(adjust.dataset.delta),now());updated.adjusted=true;records.set(id,updated);showError(`guard-error-${id}`);updateGuardRow(r);computeGuard();}catch(err){showError(`guard-error-${id}`,err,'oldRecord');}return;}
+      if(e.target.closest('[data-record]')){const recordedAt=now();try{const snapshot=K.recordEnemy(r,recordedAt);snapshot.index=state.guard.indexOf(r);snapshot.draft=JSON.stringify(r);records.set(id,snapshot);showError(`guard-error-${id}`);updateGuardRow(r);clearNotice();computeGuard();toast('recordToast',{name:rowName(snapshot,'guard'),time:clock(snapshot.arrivalAt,true)});}catch(err){showError(`guard-error-${id}`,err,records.has(id)?'oldRecord':null);}}
     });
   }
   $('rally-lead').addEventListener('input',()=>{state.lead=$('rally-lead').value;dirtyPlan();save();});

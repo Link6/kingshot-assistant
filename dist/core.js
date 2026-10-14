@@ -43,7 +43,25 @@
   function recordEnemy(row, now) {
     const prepare = row.mode === 'marching' ? 0 : parseDuration(row.prepare);
     const march = parseDuration(row.march, false);
-    return {id: row.id, name: row.name.trim(), recordedAt: now, arrivalAt: now + (prepare + march) * 1000};
+    return {id: row.id, name: row.name.trim(), mode:row.mode, recordedAt: now, departAt:now + prepare * 1000, marchSeconds:march, arrivalAt: now + (prepare + march) * 1000};
+  }
+  function enemyCountdown(record, now) {
+    const prepare = Math.max(0, (record.departAt - now) / 1000);
+    const march = Math.max(0, (record.arrivalAt - Math.max(now, record.departAt)) / 1000);
+    return {prepare, march, stage:now >= record.arrivalAt ? 'arrived' : now >= record.departAt ? 'marching' : 'gathering'};
+  }
+  function adjustEnemy(record, field, delta, now) {
+    if (!['prepare','march'].includes(field) || ![-1,-0.1,0.1,1].includes(delta)) throw new TimingError('invalidTime');
+    const shift = Math.round(delta * 1000);
+    if (field === 'prepare') {
+      if (record.mode === 'marching' || now >= record.departAt) throw new TimingError('prepareEnded');
+      if (record.departAt + shift < now) throw new TimingError('adjustBelowZero');
+      if (record.departAt + shift - record.recordedAt > MAX_SECONDS * 1000) throw new TimingError('invalidTime');
+      return {...record, departAt:record.departAt + shift, arrivalAt:record.arrivalAt + shift};
+    }
+    const marchSeconds = (Math.round(record.marchSeconds * 1000) + shift) / 1000;
+    parseDuration(marchSeconds, false);
+    return {...record, marchSeconds, arrivalAt:record.arrivalAt + shift};
   }
   function guardWindows(records, ownMarch, margin) {
     const own = parseDuration(ownMarch, false) * 1000;
@@ -64,7 +82,7 @@
     if (recent && now - recent.launchAt < 1200) return recent;
     return rows.find(r => r.launchAt > now) || null;
   }
-  const api = {parseDuration, makeRallyPlan, recordEnemy, guardWindows, nextWindow, nextRallyInstruction};
+  const api = {parseDuration, makeRallyPlan, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, nextRallyInstruction};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KingshotTiming = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

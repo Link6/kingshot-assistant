@@ -54,8 +54,8 @@
     "Every second counts"
   ],
   "version": [
-    "独立辅助工具 · v0.2",
-    "Independent tool · v0.2"
+    "独立辅助工具 · v0.2.1",
+    "Independent tool · v0.2.1"
   ],
   "workbench": [
     "作战工作台",
@@ -330,8 +330,8 @@
     "＋ Add enemy team"
   ],
   "recalibrate": [
-    "校准时重新读取游戏倒计时，只更新当前这一队。",
-    "Read the current game countdown before re-recording. Other teams stay unchanged."
+    "记录后对照实时倒计时，用加减按钮校准当前队伍；需要替换读数时再重新记录。",
+    "Compare the live timer with the game and use +/− to adjust this team. Record again only to replace the reading."
   ],
   "sendCue": [
     "补兵指令",
@@ -804,7 +804,16 @@
   "desktopError": [
     "桌面功能暂不可用，请重试。",
     "Desktop action unavailable. Please try again."
-  ]
+  ],
+  "liveTiming": ["实时校准 · 对照游戏", "Live timing · compare with game"],
+  "prepareAdjust": ["微调已记录的集结时间", "Adjust recorded rally time"],
+  "marchAdjust": ["微调已记录的行军时间", "Adjust recorded march time"],
+  "adjustPrepare": ["集结时间调整 {delta} 秒", "Adjust rally time by {delta} seconds"],
+  "adjustMarch": ["行军时间调整 {delta} 秒", "Adjust march time by {delta} seconds"],
+  "adjustHelp": ["＋ 延后，− 提前。按钮立即修改本次记录和补兵窗口，无需重新记录；上方输入保留用于下次记录。集结结束后自动开始行军倒计时。", "+ delays, − advances. Buttons immediately update this record and reinforcement windows. Inputs above remain for the next recording. March countdown starts when gathering ends."],
+  "adjustApplied": ["已校准 · 预计攻击 {time}", "Adjusted · estimated attack {time}"],
+  "prepareEnded": ["集结阶段已结束，请微调行军时间或重新记录。", "Gathering has ended. Adjust march time or record again."],
+  "adjustBelowZero": ["调整后集结剩余不能小于 0 秒，请使用更小步长。", "Rally time remaining cannot be negative. Use a smaller step."]
 };
 
   let language = 'zh-CN';
