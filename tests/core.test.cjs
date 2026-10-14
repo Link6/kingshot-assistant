@@ -59,3 +59,13 @@ test('closely spaced launches switch immediately to the newly due head', () => {
   assert.equal(nextRallyInstruction(rows,13000).id,'d');
   assert.equal(nextRallyInstruction(rows,22000),null);
 });
+test('warn only for positive reinforcement windows strictly below one second after margins',()=>{
+  for(const [gap,narrow,usable] of [[0,false,false],[400,false,false],[401,true,true],[1399,true,true],[1400,false,true],[1401,false,true]]){
+    const [w]=guardWindows([{id:'a',arrivalAt:100000},{id:'b',arrivalAt:100000+gap}],'29','0.2');
+    assert.equal(w.narrow,narrow,`gap ${gap}`);
+    assert.equal(w.usable,usable,`gap ${gap}`);
+  }
+  const records=[{id:'a',arrivalAt:100000},{id:'b',arrivalAt:101400}];
+  assert.equal(guardWindows(records,'29','0.2')[0].narrow,false);
+  assert.equal(guardWindows(records,'29','0.3')[0].narrow,true);
+});

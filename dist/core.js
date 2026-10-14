@@ -73,7 +73,7 @@
       const arrivalEnd = b.arrivalAt - pad;
       const start = arrivalStart - own;
       const end = arrivalEnd - own;
-      return {id: `${a.id}:${b.id}:${a.arrivalAt}:${b.arrivalAt}`, before: a, after: b, arrivalStart, arrivalEnd, start, end, midpoint: (start + end) / 2, width: (end - start) / 1000, usable: arrivalEnd > arrivalStart};
+      return {id: `${a.id}:${b.id}:${a.arrivalAt}:${b.arrivalAt}`, before: a, after: b, arrivalStart, arrivalEnd, start, end, midpoint: (start + end) / 2, width: (end - start) / 1000, usable: arrivalEnd > arrivalStart, narrow:arrivalEnd > arrivalStart && arrivalEnd - arrivalStart < 1000};
     });
   }
   function nextWindow(windows, now) { return windows.find(w => w.usable && w.end > now) || null; }

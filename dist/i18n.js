@@ -54,8 +54,8 @@
     "Every second counts"
   ],
   "version": [
-    "独立辅助工具 · v0.2.1",
-    "Independent tool · v0.2.1"
+    "独立辅助工具 · v0.2.2",
+    "Independent tool · v0.2.2"
   ],
   "workbench": [
     "作战工作台",
@@ -805,6 +805,8 @@
     "桌面功能暂不可用，请重试。",
     "Desktop action unavailable. Please try again."
   ],
+  "narrowGap": ["补兵窗口不足 1 秒", "Reinforcement window under 1 second"],
+  "hospitalWarning": ["可能补兵失败，注意医院容量。", "Reinforcements may fail. Check your hospital capacity."],
   "liveTiming": ["实时校准 · 对照游戏", "Live timing · compare with game"],
   "prepareAdjust": ["微调已记录的集结时间", "Adjust recorded rally time"],
   "marchAdjust": ["微调已记录的行军时间", "Adjust recorded march time"],
