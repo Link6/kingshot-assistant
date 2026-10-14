@@ -4,6 +4,7 @@
   "version": "0.2.5",
   "description": "Offline rally coordination and reinforcement timing for Kingshot",
   "author": "Link6",
+  "license": "MIT",
   "engines": { "node": ">=24" },
   "main": "electron/main.cjs",
   "scripts": {
@@ -20,7 +21,7 @@
     "appId": "io.github.link6.kingshot-assistant",
     "productName": "Kingshot Assistant",
     "directories": { "output": "desktop-release" },
-    "files": ["dist/**/*", "electron/**/*", "package.json", "!dist/sw.js"],
+    "files": ["dist/**/*", "electron/**/*", "package.json", "LICENSE", "!dist/sw.js"],
     "asar": true,
     "win": { "target": ["nsis", "portable"] },
     "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "Kingshot-Assistant-Setup-${version}-${arch}.${ext}" },

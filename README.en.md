@@ -6,6 +6,8 @@
 
 A rally coordination and castle reinforcement timing assistant for Kingshot, with Chinese and English interfaces and an Electron desktop app. No account is required. Calculations run on your device, and common inputs are saved locally.
 
+This project is licensed under the [MIT License](LICENSE). Copyright © 2026 Link6.
+
 ## Features
 
 - **Rally coordination:** Calculate when each leader should start a rally so multiple rallies reach the same target together. Use an automatic schedule or set a shared arrival time.
