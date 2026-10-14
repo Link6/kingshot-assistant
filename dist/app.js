@@ -77,7 +77,7 @@
     $('rally-share-text').hidden=!plan;
     txt('share-hint',t(plan?'shareHint':'shareEmpty'));
     $('copy-rally').disabled=!plan;
-    $('rally-share-text').value=K.rallyShareText(plan,{title:t('shareTitle'),arrival:t('shareArrival'),launch:t('shareLaunch'),leader:n=>t('leaderName',{n})});
+    $('rally-share-text').value=K.rallyShareText(plan,{leader:n=>t('leaderName',{n})});
     $('rally-timeline').innerHTML=!plan?`<div class="result-placeholder">${t('timelineEmpty')}</div>`:plan.rows.map((r,i)=>`<div class="timeline-row" id="launch-row-${r.id}"><span class="order">${i+1}</span><div><b>${esc(rowName(r))}</b><small>${t('rowDurations',{prepare:duration(r.prepareSeconds),march:duration(r.marchSeconds)})}</small></div><div class="time">${K.formatUtc(r.launchAt).slice(11)}<small>${K.formatUtc(r.launchAt).slice(0,10)}</small><small id="launch-timer-${r.id}"></small></div></div>`).join('');
   }
   function renderGuardTimeline(){

@@ -89,9 +89,10 @@
   function rallyShareText(plan, labels) {
     if (!plan) return '';
     const clean = value => String(value).replace(/\s+/g, ' ').trim();
-    return [labels.title, `${labels.arrival}: ${formatUtc(plan.target)}`, '', labels.launch,
-      ...plan.rows.map((r, i) => `${i + 1}. ${clean(r.name) || labels.leader(r.index + 1)} — ${formatUtc(r.launchAt)}`)
-    ].join('\n');
+    return plan.rows.map(r => {
+      const time = new Date(r.launchAt).toISOString().slice(11, 23).replace(/\.?0+$/, '');
+      return `${clean(r.name) || labels.leader(r.index + 1)} ${time} UTC`;
+    }).join('\n');
   }
   const api = {parseDuration, makeRallyPlan, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, nextRallyInstruction, formatUtc, rallyShareText};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
