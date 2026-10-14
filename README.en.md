@@ -46,6 +46,15 @@ The input fields remain available for the next recording. Recording again replac
 
 Supported duration formats include `5:00`, `35`, `29.5s`, and `4m 40s`. Plain numbers are interpreted as seconds.
 
+### Estimate enemy pet timers
+
+Each enemy leader has an independent **Enemy pet · estimated timer**. When you notice an active pet, enter your estimate of how many minutes it has already been active and click **Pet seen active**. Enter `0` if unsure: this estimates the latest end from the observation time, and the effect may end sooner.
+
+- Uses a 2-hour duration and shows a yellow reminder **5 minutes** before the estimated end. With sound enabled, it plays one cue; the desktop app also schedules a background reminder.
+- The reminder names the affected leaders. **Update march time** takes you to the input. Check the actual game reading, update the march time, and record the attack again. The assistant does not automatically calculate movement speed after the pet effect ends.
+- Enter a revised elapsed duration and click **Apply new estimate** to correct it. Once you confirm the effect has ended, click **Mark as ended** to clear that leader's timer and reminder.
+- Pet estimates use absolute timestamps saved locally, so reloading, switching languages, or recording attacks again does not restart them. A significant device-clock change prompts you to review the estimate.
+
 ## Run locally
 
 Requires Node.js 24 or later. The website has no third-party runtime dependencies, so `npm ci` is not required to serve it.
@@ -96,7 +105,7 @@ Asset paths, offline caching, and local storage support the `/kingshot-assistant
 ## Data and timing notes
 
 - Common inputs are saved in the current browser or desktop app. Data does not sync automatically across devices, domains, or between the web and desktop apps.
-- Switching languages preserves active timers. Reloading restores inputs only: regenerate the rally schedule or record enemy countdowns again. Live timers are cleared after sleep/resume or a detected large clock change.
+- Switching languages preserves active timers. Reloading restores inputs and pet estimates; regenerate the rally schedule or record enemy attack countdowns again. Rally schedules and attack records are cleared after sleep/resume or a detected large clock change. Pet estimates are retained and require review after clock changes.
 - UTC is derived from your device clock, not read from the game server. Make sure your device time is accurate.
 - The assistant calculates from manual input and does not read or control the game. Reinforcement calculations assume your troops should arrive at the castle between two enemy attacks. Actual results depend on game latency and your actions, so verify timings in play.
 - Keep the website in the foreground during battle; background tabs or a locked screen may delay alerts. Sound cues apply only to the currently selected tool. Desktop background alerts also depend on system notification settings.

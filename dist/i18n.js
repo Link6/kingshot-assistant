@@ -1,6 +1,23 @@
 (function(root){
   "use strict";
   const catalogue = {
+  "petTitle": ["敌方宠物 · 估计计时", "Enemy pet · estimated timer"],
+  "petElapsed": ["估计已开启（分钟）", "Estimated minutes already active"],
+  "petStart": ["发现已开宠物", "Pet seen active"],
+  "petApply": ["应用新的估计", "Apply new estimate"],
+  "petStop": ["标记已结束", "Mark as ended"],
+  "petHelp": ["持续 2 小时，提前 5 分钟提醒。不知道已开启多久就填 0，此时按发现时刻估算最晚结束时间，实际可能更早。", "Lasts 2 hours; warns 5 minutes before the estimated end. Enter 0 if unsure how long it has been active: this estimates the latest end from when you noticed it. It may end sooner."],
+  "petRemaining": ["预计剩余", "Estimated time left"],
+  "petActive": ["仅为估计", "Estimate only"],
+  "petSoon": ["预计剩余不超过 5 分钟，请更新行军时间", "About 5 minutes or less left. Update march time."],
+  "petExpired": ["预计已结束，请核对行军时间", "Estimated to have ended. Check march time."],
+  "petUncertain": ["设备时间有变化，请重新估计并核对行军时间", "Device time changed. Re-estimate and check march time."],
+  "petEndAt": ["预计结束：{time}", "Estimated end: {time}"],
+  "petElapsedInvalid": ["请填写 0 到 120 之间的分钟数。", "Enter a number of minutes between 0 and 120."],
+  "petReminderTitle": ["宠物可能即将或已经结束", "Pet effect may be ending or have ended"],
+  "petReminder": ["{names}：请核对游戏中的行军时间，更新后重新记录攻击倒计时。", "{names}: check march times in the game, update them, then record the attack countdowns again."],
+  "petUpdateMarch": ["去更新行军时间", "Update march time"],
+  "petStarted": ["已按估计开启时间计时，提前 5 分钟提醒", "Estimate saved. Reminder set for 5 minutes before the estimated end."],
   "localClock": ["本地 {time}", "Local {time}"],
   "utcNow": ["当前 UTC 时间", "Current UTC time"],
   "utcDevice": ["根据设备时钟换算", "Based on your device clock"],
@@ -65,8 +82,8 @@
     "Every second counts"
   ],
   "version": [
-    "独立辅助工具 · v0.2.3",
-    "Independent tool · v0.2.3"
+    "独立辅助工具 · v0.2.4",
+    "Independent tool · v0.2.4"
   ],
   "workbench": [
     "作战工作台",

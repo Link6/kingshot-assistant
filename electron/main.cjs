@@ -38,7 +38,8 @@ async function createWindow(){
     // Exercise the native shell without displaying a test window or editing user data.
     const pinWorks=pin(true)&&!pin(false);resizeCompact(true);const small=win.getBounds();resizeCompact(false);
     const prefs=win.webContents.getLastWebPreferences();
-    const result={loaded:win.webContents.getURL().startsWith(entryURL),pinWorks,compactWorks:small.width===490,isolated:prefs.contextIsolation,sandboxed:prefs.sandbox,nodeDisabled:!prefs.nodeIntegration};
+    const petChecks=await require('./smoke-ui.cjs')(win,entry);
+    const result={loaded:win.webContents.getURL().startsWith(entryURL),pinWorks,compactWorks:small.width===490,isolated:prefs.contextIsolation,sandboxed:prefs.sandbox,nodeDisabled:!prefs.nodeIntegration,...petChecks};
     fs.writeFileSync(path.join(process.cwd(),'.desktop-smoke.json'),JSON.stringify(result,null,2));
     app.exit(Object.values(result).every(Boolean)?0:1);
   }else win.show();

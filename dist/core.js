@@ -94,7 +94,23 @@
       return `${clean(r.name) || labels.leader(r.index + 1)} ${time} UTC`;
     }).join('\n');
   }
-  const api = {parseDuration, makeRallyPlan, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, nextRallyInstruction, formatUtc, rallyShareText};
+  const PET_DURATION = 2 * 60 * 60 * 1000, PET_WARNING = 5 * 60 * 1000;
+  function makePetEstimate(elapsedMinutes, now) {
+    const raw = String(elapsedMinutes).trim(), minutes = Number(raw);
+    if (!/^\d+(?:\.\d+)?$/.test(raw) || !Number.isFinite(minutes) || minutes < 0 || minutes > 120 || !Number.isFinite(now)) throw new TimingError('petElapsedInvalid');
+    return {observedAt:now, startedAt:now - Math.round(minutes * 60000), alerted:false, clockChanged:false};
+  }
+  function restorePetEstimate(value) {
+    if (!value || !Number.isSafeInteger(value.observedAt) || !Number.isSafeInteger(value.startedAt) || !Number.isFinite(new Date(value.startedAt + PET_DURATION).getTime()) || value.startedAt > value.observedAt || value.observedAt - value.startedAt > PET_DURATION) return null;
+    return {observedAt:value.observedAt, startedAt:value.startedAt, alerted:value.alerted === true, clockChanged:value.clockChanged === true};
+  }
+  function petTiming(pet, now) {
+    if (!pet) return null;
+    const end = pet.startedAt + PET_DURATION, warnAt = end - PET_WARNING;
+    const stage = pet.clockChanged || now < pet.observedAt ? 'uncertain' : now >= end ? 'expired' : now >= warnAt ? 'soon' : 'active';
+    return {end, warnAt, remaining:Math.max(0, (end - now) / 1000), stage, needsReview:stage !== 'active'};
+  }
+  const api = {parseDuration, makeRallyPlan, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KingshotTiming = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

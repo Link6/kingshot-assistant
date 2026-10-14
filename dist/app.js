@@ -19,7 +19,7 @@
   function countdown(seconds){const ticks=Math.ceil(Math.max(0,seconds)*10),total=Math.floor(ticks/10),h=Math.floor(total/3600);return(h?`${h}:`:'')+`${String(Math.floor(total/60)%60).padStart(2,'0')}:${String(total%60).padStart(2,'0')}.${ticks%10}`;}
   function duration(seconds){return seconds<60?t('durationS',{s:I.number(seconds)}):t('durationMS',{m:Math.floor(seconds/60),s:I.number(seconds%60)});}
   const rowName=(r,kind='rally')=>r.name||t(kind==='rally'?'leaderName':'enemyName',{n:(r.index??state[kind].findIndex(x=>x.id===r.id))+1});
-  const fresh=(kind,name='')=>({id:uid(),name,prepare:'5:00',march:'',...(kind==='guard'?{mode:'gathering'}:{})});
+  const fresh=(kind,name='')=>({id:uid(),name,prepare:'5:00',march:'',...(kind==='guard'?{mode:'gathering',pet:null,petElapsed:'0'}:{})});
   function restore(){
     let preferred=navigator.language;
     try{
@@ -28,7 +28,7 @@
       if(saved&&typeof saved==='object'){
         for(const key of ['lead','own','margin'])if(typeof saved[key]==='string')state[key]=saved[key];
         if(typeof saved.sound==='boolean')state.sound=saved.sound;
-        for(const kind of ['rally','guard'])if(Array.isArray(saved[kind]))state[kind]=saved[kind].slice(0,30).filter(r=>r&&typeof r==='object').map(r=>({...fresh(kind),name:String(r.name||'').slice(0,40),prepare:String(r.prepare??'5:00'),march:String(r.march??''),...(kind==='guard'?{mode:r.mode==='marching'?'marching':'gathering'}:{})}));
+        for(const kind of ['rally','guard'])if(Array.isArray(saved[kind]))state[kind]=saved[kind].slice(0,30).filter(r=>r&&typeof r==='object').map(r=>({...fresh(kind),name:String(r.name||'').slice(0,40),prepare:String(r.prepare??'5:00'),march:String(r.march??''),...(kind==='guard'?{mode:r.mode==='marching'?'marching':'gathering',pet:K.restorePetEstimate(r.pet),petElapsed:String(r.petElapsed??'0')}:{})}));
         try{K.parseDuration(state.own,false);validOwn=state.own;}catch{state.own=validOwn;}
         try{K.parseDuration(state.margin);validMargin=state.margin;}catch{state.margin=validMargin;}
       }
@@ -44,18 +44,45 @@
     state.rally.forEach(updateRallyHint);
   }
   function updateRallyHint(r){try{txt(`rally-hint-${r.id}`,t('total',{time:duration(K.parseDuration(r.prepare)+K.parseDuration(r.march,false))}));}catch{txt(`rally-hint-${r.id}`,t('totalHint'));}}
+  function updatePets(time){
+    const warnings=[];let changed=false;
+    for(const r of state.guard){
+      const timing=K.petTiming(r.pet,time),panel=$(`pet-panel-${r.id}`);
+      if(panel){
+        panel.classList.toggle('warning',!!timing?.needsReview);
+        $(`pet-live-${r.id}`).hidden=!timing;
+        txt(`pet-status-${r.id}`,timing?t('petActive'):'');
+        if(timing){
+          txt(`pet-time-${r.id}`,timing.stage==='uncertain'?'—':countdown(Math.ceil(timing.remaining)).split('.')[0]);
+          txt(`pet-end-${r.id}`,t('petEndAt',{time:K.formatUtc(timing.end,false)}));
+          $(`pet-warning-${r.id}`).hidden=!timing.needsReview;
+          txt(`pet-warning-${r.id}`,timing.needsReview?t(timing.stage==='uncertain'?'petUncertain':timing.stage==='expired'?'petExpired':'petSoon'):'');
+        }
+      }
+      if(!timing?.needsReview)continue;
+      warnings.push(rowName(r,'guard'));
+      if(timing.stage==='uncertain'&&!r.pet.clockChanged){r.pet.clockChanged=true;changed=true;}
+      if(!r.pet.alerted){r.pet.alerted=true;changed=true;beep(false);}
+    }
+    $('pet-reminders').hidden=!warnings.length;
+    txt('pet-reminder-text',warnings.length?t('petReminder',{names:warnings.join(' / ')}):'');
+    if(changed)save();
+  }
+  const battleDraft=r=>JSON.stringify({name:r.name,mode:r.mode,prepare:r.prepare,march:r.march});
   function renderGuardRows(){
     txt('guard-count',state.guard.length);$('guard-empty').hidden=!!state.guard.length;$('add-guard').disabled=state.guard.length>=30;
     $('guard-rows').innerHTML=state.guard.map((r,i)=>`<div class="person-row guard-row" data-id="${r.id}"><div class="row-title"><span class="row-number">${String(i+1).padStart(2,'0')}</span><input data-field="name" aria-label="${esc(t('enemyName',{n:i+1})+' '+t('name'))}" placeholder="${t('enemyPlaceholder')}" value="${esc(r.name)}" maxlength="40"><button class="delete-row" data-delete aria-label="${esc(t('deleteEnemy',{n:i+1}))}">×</button></div><div class="row-toolbar"><div class="mode-toggle" role="group" aria-label="${t('stage')}"><button data-mode="gathering" class="${r.mode==='gathering'?'selected':''}" aria-pressed="${r.mode==='gathering'}">${t('gathering')}</button><button data-mode="marching" class="${r.mode==='marching'?'selected':''}" aria-pressed="${r.mode==='marching'}">${t('marching')}</button></div><span class="record-status" id="record-status-${r.id}"></span></div><div class="field-grid ${r.mode==='marching'?'marching':''}">${r.mode==='gathering'?`<label>${t('prepareRemaining')}<span class="input-unit"><input data-field="prepare" value="${esc(r.prepare)}" placeholder="${t('example440')}"><span>${t('time')}</span></span></label>`:''}<label>${t(r.mode==='marching'?'marchRemaining':'marchFull')}<span class="input-unit"><input data-field="march" value="${esc(r.march)}" placeholder="${t('example35')}"><span>${t('seconds')}</span></span></label></div><div class="form-error" id="guard-error-${r.id}" role="alert" hidden></div><button class="record-button" data-record><span id="record-label-${r.id}"></span><span>↗</span></button><div class="record-caption" id="record-caption-${r.id}"></div></div>`).join('');
     state.guard.forEach(r=>{
       const controls=field=>[-1,-0.1,0.1,1].map(delta=>`<button type="button" data-adjust="${field}" data-delta="${delta}" aria-label="${esc(t(field==='prepare'?'adjustPrepare':'adjustMarch',{delta:(delta>0?'+':'')+delta}))}">${delta>0?'+':'−'}${Math.abs(delta)}${t('seconds')}</button>`).join('');
       $(`record-caption-${r.id}`).insertAdjacentHTML('afterend',`<section class="enemy-live" id="enemy-live-${r.id}" aria-label="${t('liveTiming')}" hidden><div class="enemy-live-heading"><b>${t('liveTiming')}</b><span id="enemy-stage-${r.id}"></span></div><div class="enemy-clock" id="enemy-prepare-group-${r.id}"><div><span>${t('prepareRemaining')}</span><strong id="enemy-prepare-${r.id}"></strong></div><div class="time-nudges" role="group" aria-label="${t('prepareAdjust')}">${controls('prepare')}</div></div><div class="enemy-clock"><div><span id="enemy-march-label-${r.id}"></span><strong id="enemy-march-${r.id}"></strong></div><div class="time-nudges" role="group" aria-label="${t('marchAdjust')}">${controls('march')}</div></div><p>${t('adjustHelp')}</p><p id="enemy-adjust-note-${r.id}" role="status"></p></section>`);
+      $(`enemy-live-${r.id}`).insertAdjacentHTML('afterend',`<section class="pet-timer" id="pet-panel-${r.id}"><div class="pet-heading"><b>${t('petTitle')}</b><span id="pet-status-${r.id}"></span></div><div class="pet-controls"><label>${t('petElapsed')}<input data-pet-elapsed type="number" min="0" max="120" step="any" inputmode="decimal" value="${esc(r.petElapsed)}"></label><button class="button secondary" data-pet-start>${t(r.pet?'petApply':'petStart')}</button></div><p class="pet-help">${t('petHelp')}</p><div class="form-error" id="pet-error-${r.id}" role="alert" hidden></div><div id="pet-live-${r.id}" hidden><div class="pet-reading"><span>${t('petRemaining')}</span><strong id="pet-time-${r.id}"></strong><button class="text-button subtle" data-pet-stop>${t('petStop')}</button></div><p id="pet-end-${r.id}"></p><p class="pet-warning" id="pet-warning-${r.id}" hidden></p></div></section>`);
       updateGuardRow(r);
     });
-    for(const [id,{err,suffix}] of errors)if(id.startsWith('guard-error-'))showError(id,err,suffix);
+    updatePets(now());
+    for(const [id,{err,suffix}] of errors)if(id.startsWith('guard-error-')||id.startsWith('pet-error-'))showError(id,err,suffix);
   }
   function updateGuardRow(r){
-    const rec=records.get(r.id),edited=rec&&rec.draft!==JSON.stringify(r),status=$(`record-status-${r.id}`);
+    const rec=records.get(r.id),edited=rec&&rec.draft!==battleDraft(r),status=$(`record-status-${r.id}`);
     status.className=`record-status ${rec?edited?'dirty':'recorded':''}`;status.textContent=t(rec?edited?'edited':'recorded':'unrecorded');
     let reading;try{reading=duration(K.parseDuration(r.mode==='marching'?r.march:r.prepare));}catch{reading=t('reading');}
     txt(`record-label-${r.id}`,t('recordLabel',{action:t(rec?'rerecord':'record'),reading}));
@@ -93,7 +120,7 @@
   function alertAt(key,deadline,time,end){const d=(deadline-time)/1000;if(d>3||time>end)return;const stage=d<=0?'go':String(Math.ceil(d)),marker=`${key}:${stage}`;if(!fired.has(marker)){fired.add(marker);if(d>=-1)beep(stage==='go');}}
   function hero(kind,o){txt(`${kind}-state`,o.state);txt(`${kind}-next-name`,o.name);txt(`${kind}-countdown`,o.value);txt(`${kind}-instruction`,o.instruction);$(`${kind}-countdown`).classList.toggle('muted',!!o.muted);$(`${kind}-countdown`).classList.toggle('textual',/[^\d:.-]/.test(o.value));$(`${kind}-hero`).classList.toggle('go',!!o.go);$(`${kind}-hero`).classList.toggle('soon',!!o.soon);}
   function updateTimers(){
-    const time=now();txt('local-clock',t('localClock',{time:clock(time)}));
+    const time=now();updatePets(time);txt('local-clock',t('localClock',{time:clock(time)}));
     txt('utc-clock',K.formatUtc(time,false));
     $('utc-clock').dateTime=new Date(time).toISOString();
     if(plan){
@@ -116,10 +143,12 @@
     if(!desktop)return;const events=[];
     if(state.sound&&state.tab==='rally'&&plan)for(const r of plan.rows)events.push({id:`r:${r.launchAt}`,at:r.launchAt,expiresAt:r.launchAt+1200,title:t('launchNow'),body:rowName(r)});
     if(state.sound&&state.tab==='guard')for(const w of windows.filter(w=>w.usable))events.push({id:`g:${w.id}`,at:w.midpoint,expiresAt:w.end,title:t('sendNow'),body:t('between',{before:rowName(w.before,'guard'),after:rowName(w.after,'guard')})});
+    if(state.sound)for(const r of state.guard){const pet=K.petTiming(r.pet,now());if(pet&&pet.stage!=='uncertain')events.push({id:`pet:${r.id}:${r.pet.observedAt}:${r.pet.startedAt}`,at:pet.warnAt,expiresAt:pet.end,title:t('petReminderTitle'),body:t('petReminder',{names:rowName(r,'guard')})});}
     desktop.setAlarms(events).catch(()=>{});
   }
-  function invalidateSession(){
-    if(!plan&&!records.size)return;
+  function invalidateSession(clockChanged=false){
+    if(clockChanged){for(const r of state.guard)if(r.pet)r.pet.clockChanged=true;save();}
+    if(!plan&&!records.size){updateTimers();syncDesktopAlarms();return;}
     plan=null;records.clear();windows=[];fired.clear();$('rally-dirty').hidden=true;$('stop-rally').disabled=true;sessionInvalid=true;txt('session-notice',t('sleepReset'));$('session-notice').hidden=false;
     renderRallyTimeline();renderGuardRows();renderGuardTimeline();updateTimers();syncDesktopAlarms();
   }
@@ -133,14 +162,18 @@
   for(const kind of ['rally','guard']){
     $(`add-${kind}`).addEventListener('click',()=>addRow(kind));$(`first-${kind}`).addEventListener('click',()=>addRow(kind));
     $(`${kind}-rows`).addEventListener('input',e=>{const holder=e.target.closest('[data-id]'),field=e.target.dataset.field;if(!holder||!field)return;const r=state[kind].find(r=>r.id===holder.dataset.id);r[field]=e.target.value;if(kind==='rally'){dirtyPlan();updateRallyHint(r);}else updateGuardRow(r);save();});
+    if(kind==='guard')$('guard-rows').addEventListener('input',e=>{if(!e.target.matches('[data-pet-elapsed]'))return;const r=state.guard.find(r=>r.id===e.target.closest('[data-id]').dataset.id);r.petElapsed=e.target.value;save();});
     $(`${kind}-rows`).addEventListener('click',e=>{
       const holder=e.target.closest('[data-id]');if(!holder)return;const id=holder.dataset.id,r=state[kind].find(r=>r.id===id);
-      if(e.target.closest('[data-delete]')){if((records.has(id)||(kind==='rally'&&plan))&&!confirm(t('deleteConfirm')))return;state[kind]=state[kind].filter(r=>r.id!==id);errors.delete(`guard-error-${id}`);if(kind==='rally'){dirtyPlan();renderRallyRows();}else{records.delete(id);renderGuardRows();computeGuard();}save();return;}
+      if(e.target.closest('[data-delete]')){if((records.has(id)||r.pet||(kind==='rally'&&plan))&&!confirm(t('deleteConfirm')))return;state[kind]=state[kind].filter(r=>r.id!==id);errors.delete(`guard-error-${id}`);errors.delete(`pet-error-${id}`);if(kind==='rally'){dirtyPlan();renderRallyRows();}else{records.delete(id);renderGuardRows();computeGuard();}save();return;}
+      if(e.target.closest('[data-pet-start]')){try{r.pet=K.makePetEstimate(r.petElapsed,now());showError(`pet-error-${id}`);save();renderGuardRows();syncDesktopAlarms();toast('petStarted');}catch(err){showError(`pet-error-${id}`,err);}return;}
+      if(e.target.closest('[data-pet-stop]')){r.pet=null;r.petElapsed='0';showError(`pet-error-${id}`);save();renderGuardRows();syncDesktopAlarms();return;}
       const mode=e.target.closest('[data-mode]');if(mode){r.mode=mode.dataset.mode;renderGuardRows();save();return;}
       const adjust=e.target.closest('[data-adjust]');if(adjust){const rec=records.get(id);if(!rec)return;try{const updated=K.adjustEnemy(rec,adjust.dataset.adjust,Number(adjust.dataset.delta),now());updated.adjusted=true;records.set(id,updated);showError(`guard-error-${id}`);updateGuardRow(r);computeGuard();}catch(err){showError(`guard-error-${id}`,err,'oldRecord');}return;}
-      if(e.target.closest('[data-record]')){const recordedAt=now();try{const snapshot=K.recordEnemy(r,recordedAt);snapshot.index=state.guard.indexOf(r);snapshot.draft=JSON.stringify(r);records.set(id,snapshot);showError(`guard-error-${id}`);updateGuardRow(r);clearNotice();computeGuard();toast('recordToast',{name:rowName(snapshot,'guard'),time:clock(snapshot.arrivalAt,true)});}catch(err){showError(`guard-error-${id}`,err,records.has(id)?'oldRecord':null);}}
+      if(e.target.closest('[data-record]')){const recordedAt=now();try{const snapshot=K.recordEnemy(r,recordedAt);snapshot.index=state.guard.indexOf(r);snapshot.draft=battleDraft(r);records.set(id,snapshot);showError(`guard-error-${id}`);updateGuardRow(r);clearNotice();computeGuard();toast('recordToast',{name:rowName(snapshot,'guard'),time:clock(snapshot.arrivalAt,true)});}catch(err){showError(`guard-error-${id}`,err,records.has(id)?'oldRecord':null);}}
     });
   }
+  $('pet-update-march').addEventListener('click',async()=>{const r=state.guard.find(r=>K.petTiming(r.pet,now())?.needsReview);if(!r)return;state.focus=false;document.body.classList.remove('focus-mode');syncControls();setTab('guard');if(desktop)try{await desktop.setCompact(false);}catch{}const panel=$(`pet-panel-${r.id}`);panel.closest('[data-id]').querySelector('[data-field="march"]').focus();panel.closest('[data-id]').scrollIntoView({block:'center',behavior:'smooth'});});
   $('rally-lead').addEventListener('input',()=>{state.lead=$('rally-lead').value;dirtyPlan();save();});
   $('rally-target').addEventListener('input',()=>{state.target=$('rally-target').value;dirtyPlan();});
   $('copy-rally').addEventListener('click',async()=>{
@@ -164,7 +197,7 @@
   $('guard-example').addEventListener('click',()=>{if(state.guard.length&&!confirm(t('guardExampleConfirm')))return;records.clear();state.guard=[{...fresh('guard','A'),prepare:'1:00',march:'35'},{...fresh('guard','B'),prepare:'1:00',march:'38'}];renderGuardRows();computeGuard();save();toast('guardExampleToast');});
   $('clear-page').addEventListener('click',()=>{const kind=state.tab;if(!confirm(t('clearConfirm',{tool:t(kind)})))return;state[kind]=[];if(kind==='rally'){plan=null;state.lead='10';state.target='';$('rally-lead').value='10';$('rally-target').value='';setSchedule('auto');$('rally-dirty').hidden=true;$('stop-rally').disabled=true;showError('rally-error');renderRallyRows();renderRallyTimeline();}else{records.clear();state.own=validOwn='29';state.margin=validMargin='0.2';$('own-march').value='29';$('guard-margin').value='0.2';settingsValid=true;showError('guard-settings-error');renderGuardRows();computeGuard();}clearNotice();syncControls();save();updateTimers();syncDesktopAlarms();toast('cleared');});
   restore();I.apply();$('own-march').value=state.own;$('guard-margin').value=state.margin;$('rally-lead').value=state.lead;syncControls();renderRallyRows();renderRallyTimeline();renderGuardRows();computeGuard();setTab(location.hash==='#guard'?'guard':'rally');
-  setInterval(()=>{const wall=Date.now(),mono=performance.now();if(Math.abs((wall-previousWall)-(mono-previousMono))>3000||wall-previousWall>10000)invalidateSession();previousWall=wall;previousMono=mono;updateTimers();},100);
+  setInterval(()=>{const wall=Date.now(),mono=performance.now();const clockChanged=Math.abs((wall-previousWall)-(mono-previousMono))>3000;if(clockChanged||wall-previousWall>10000)invalidateSession(clockChanged);previousWall=wall;previousMono=mono;updateTimers();},100);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateTimers();});window.addEventListener('hashchange',()=>setTab(location.hash==='#guard'?'guard':'rally'));
   if(desktop){$('pin-toggle').hidden=false;desktop.onResume(()=>{invalidateSession();previousWall=Date.now();previousMono=performance.now();});desktop.getWindowState().then(s=>{state.pinned=s.pinned;syncControls();}).catch(()=>{});}
   if(!desktop&&'serviceWorker'in navigator&&['https:','http:'].includes(location.protocol))navigator.serviceWorker.register('./sw.js').catch(()=>{});
