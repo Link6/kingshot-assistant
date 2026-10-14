@@ -1,6 +1,8 @@
 (function(root){
   "use strict";
   const catalogue = {
+  "installAppName": ["Kingshot 战术计时助手", "Kingshot Timing Assistant"],
+  "installShortName": ["战术计时", "Kingshot Timer"],
   "installTitle": ["安装帮助", "Installation help"],
   "installBenefit": ["当前浏览器未提供安装弹窗，可按下面的方法操作。", "An install prompt is not currently available. Try the steps below."],
   "installNow": ["安装应用", "Install app"],
@@ -866,12 +868,28 @@
     const template = pair[locale === 'en' ? 1 : 0] || pair[0];
     return template.replace(/\{(\w+)\}/g, (_, name) => String(params[name] ?? '{'+name+'}'));
   }
+  function syncInstallMetadata() {
+    const manifest = document.querySelector('link[rel="manifest"]');
+    const href = language === 'zh-CN' ? 'manifest.webmanifest' : 'manifest.en.webmanifest';
+    const changed = manifest && manifest.getAttribute('href') !== href;
+    if (changed) manifest.setAttribute('href', href);
+    document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', translate('installShortName'));
+    document.documentElement.lang = language;
+    document.title = translate('appTitle');
+    if (changed) root.dispatchEvent(new Event('kingshot:install-language-change'));
+  }
   function apply() {
     document.documentElement.lang = language;
     document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = translate(el.dataset.i18n));
     for (const attr of ['aria-label','content','placeholder']) document.querySelectorAll('[data-i18n-'+attr+']').forEach(el => el.setAttribute(attr, translate(el.getAttribute('data-i18n-'+attr))));
     document.title = translate('appTitle');
   }
-  const api = {catalogue, choose, t:translate, apply, get language(){return language;}, setLanguage(value){language=choose(value);}, number(value){return new Intl.NumberFormat(language,{maximumFractionDigits:2}).format(value);}};
-  if (typeof module !== 'undefined' && module.exports) module.exports=api; else root.KingshotI18n=api;
+  const api = {catalogue, choose, t:translate, apply, get language(){return language;}, setLanguage(value){language=choose(value);if(typeof document!=='undefined')syncInstallMetadata();}, number(value){return new Intl.NumberFormat(language,{maximumFractionDigits:2}).format(value);}};
+  if (typeof module !== 'undefined' && module.exports) module.exports=api;
+  else {
+    root.KingshotI18n=api;
+    let preferred=navigator.language;
+    try { preferred=localStorage.getItem(`kingshot:${new URL('.',location.href).pathname}:language`) || preferred; } catch {}
+    api.setLanguage(preferred);
+  }
 })(typeof globalThis !== 'undefined' ? globalThis : this);

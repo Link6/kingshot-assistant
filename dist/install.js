@@ -31,6 +31,8 @@
     }).catch(()=>{if(pending===event)pending=null;render();});
   });
   window.addEventListener('appinstalled',()=>{installed=true;pending=null;manual=false;render();});
+  // A previously captured event may still contain the old language's app name.
+  window.addEventListener('kingshot:install-language-change',()=>{pending=null;render();});
   display.addEventListener?.('change',render);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)render();});
   document.addEventListener('DOMContentLoaded',render);

@@ -20,6 +20,17 @@ function nativePrompt({error=false}={}){
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 
+test('changing installation language discards the old prompt until the browser supplies a fresh one',async()=>{
+  const app=setup({ua:'Windows Chrome'}),old=nativePrompt(),fresh=nativePrompt();
+  app.fire('beforeinstallprompt',old.event);
+  app.fire('kingshot:install-language-change');
+  assert.equal(app.element('install-entry').hidden,true);
+  app.fire('beforeinstallprompt',fresh.event);
+  old.choose('dismissed');await tick();
+  const click=app.click('install-entry');assert.equal(old.event.calls,0);assert.equal(fresh.event.calls,1);
+  fresh.choose('accepted');await click;
+});
+
 test('page load leaves native installation promotion enabled and does not show a custom banner',()=>{
   for(const ua of ['Android Chrome','Windows Chrome','iPhone Safari']){
     const app=setup({ua}),prompt=nativePrompt();

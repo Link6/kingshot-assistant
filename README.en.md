@@ -59,6 +59,8 @@ Each leader in **Rally sync** and **Reinforcements** has an independent pet esti
 
 ### Add to your phone's home screen
 
+The web app's installation name follows the page language: **Kingshot Timing Assistant** (short name **Kingshot Timer**) in English, or **Kingshot 战术计时助手** (short name **战术计时**) in Chinese. First visits follow the browser language, with English for non-Chinese locales; a saved language choice takes precedence. Changing languages updates installation metadata and the Apple home-screen name, including offline. Both manifests keep the same app identity. Browsers manage names of already installed apps, so changing languages does not guarantee an immediate rename.
+
 The browser's native installation promotion stays enabled: the app does not cancel `beforeinstallprompt` or automatically show a custom banner. When the browser offers installation, **Install app** appears in the footer and directly opens the native install prompt when clicked, on both Android and desktop browsers.
 
 The browser controls whether and when automatic installation prompts appear, including after dismissal. The app does not force a prompt on page load or unrelated clicks. Mobile browsers without a native prompt offer **Installation help** in the footer, with Safari steps for iPhone and external-browser instructions for embedded browsers. Installation controls are hidden in standalone mode and Electron. Installing does not remove background timing or sound-alert limitations.
