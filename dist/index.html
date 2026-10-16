@@ -59,7 +59,7 @@
         </div>
       </section>
       <section id="guard-page" class="page" aria-labelledby="guard-title" hidden>
-        <div class="page-heading"><div><div class="eyebrow"><span></span> CITY REINFORCEMENT</div><h1 id="guard-title"><span data-i18n="guard">王城补兵</span><span class="heading-dot">.</span></h1><p><span data-i18n="guardSubtitle">看准攻击间隙，让援军及时到场。</span></p></div><button class="button ghost" id="guard-example"><span data-i18n="example">填入示例</span> <span>↗</span></button></div>
+        <div class="page-heading"><div><div class="eyebrow"><span></span> CASTLE REINFORCEMENT</div><h1 id="guard-title"><span data-i18n="guard">王城补兵</span><span class="heading-dot">.</span></h1><p><span data-i18n="guardSubtitle">看准攻击间隙，让援军及时到场。</span></p></div><button class="button ghost" id="guard-example"><span data-i18n="example">填入示例</span> <span>↗</span></button></div>
         <div class="steps"><div><span>01</span><b><span data-i18n="stepOwn">填自己的行军</span></b><small><span data-i18n="stepOwnHint">援军到达王城所需时间</span></small></div><i>→</i><div><span>02</span><b><span data-i18n="stepRecord">记录敌方倒计时</span></b><small><span data-i18n="stepRecordHint">游戏走到读数时点记录</span></small></div><i>→</i><div><span>03</span><b><span data-i18n="stepSend">等待出征提示</span></b><small><span data-i18n="stepSendHint">援军在两波攻击之间到达</span></small></div></div>
         <div class="workspace">
           <div class="setup-column">
@@ -68,6 +68,20 @@
           </div>
           <div class="result-column">
             <section class="hero-timer" id="guard-hero"><div class="timer-top"><span class="live-label"><span class="status-dot"></span> <span data-i18n="sendCue">补兵指令</span></span><span class="pill" id="guard-state"><span data-i18n="waitingRecord">等待记录</span></span></div><div class="timer-center"><div class="timer-kicker" id="guard-next-name"><span data-i18n="waitingEnemy">等待敌方攻击信息</span></div><div class="timer-value muted" id="guard-countdown">--<span>:</span>--</div><div class="guard-warning" id="guard-warning" role="status" aria-live="polite" hidden></div><div class="timer-instruction" id="guard-instruction"><span data-i18n="twoNeeded">记录至少两支敌方队伍，自动计算出征时机</span></div></div><div class="timer-footer"><div><small><span data-i18n="sendRange">你可以出征的时刻</span></small><strong id="guard-departure"><span data-i18n="notComputed">尚未计算</span></strong></div><div class="window-width"><small><span data-i18n="safeWindow">安全窗口</span></small><strong id="guard-width">—</strong></div></div></section>
+            <section class="panel battle-panel" aria-labelledby="battle-title">
+              <div class="panel-header"><h2 id="battle-title" data-i18n="battleTitle">战场时间轴</h2><span class="pill neutral" data-i18n="battleHorizon">未来 60 秒</span></div>
+              <p class="panel-caption" data-i18n="battleHint">出征与到达分开看；窗口已扣除两端容错。</p>
+              <div class="battle-legend"><span><i class="battle-key attack"></i><span data-i18n="battleAttack">敌方到达</span></span><span><i class="battle-key departure"></i><span data-i18n="battleDeparture">点击出征</span></span><span><i class="battle-key arrival"></i><span data-i18n="battleArrival">援军到达</span></span><span><i class="battle-key narrow"></i><span data-i18n="battleNarrow">不足 1 秒</span></span><span><i class="battle-key blocked"></i><span data-i18n="battleBlocked">无安全间隙</span></span></div>
+              <div id="battle-empty" class="result-placeholder" data-i18n="battleEmpty">记录敌方倒计时后，这里会显示未来 60 秒的战况。</div>
+              <div id="battle-chart" hidden>
+                <div class="battle-row battle-axis"><span class="battle-label" data-i18n="battleNow">现在</span><div class="battle-track"><span style="left:0">0</span><span style="left:25%">+15s</span><span style="left:50%">+30s</span><span style="left:75%">+45s</span><span style="left:100%">+60s</span></div></div>
+                <div class="battle-row"><span class="battle-label" data-i18n="battleDeparture">点击出征</span><div id="battle-departures" class="battle-track"></div></div>
+                <div class="battle-row"><span class="battle-label" data-i18n="battleArrival">援军到达</span><div id="battle-arrivals" class="battle-track"></div></div>
+                <div id="battle-enemies" class="battle-enemies"></div>
+                <p id="battle-status" class="battle-status"></p>
+                <p id="battle-detail" class="battle-detail" data-i18n="battleDetailHint">点击色带查看对应的两波攻击和完整时间范围（UTC）。</p>
+              </div>
+            </section>
             <section class="panel"><div class="panel-header"><h2><span data-i18n="attacks">攻击与补兵窗口</span></h2><span class="pill neutral" id="recorded-count"><span data-i18n="zeroRecords">0 队已记录</span></span></div><div id="guard-timeline" class="timeline"><div class="result-placeholder"><span data-i18n="attackEmpty">每次记录后，自动按预计攻击到达时间排序。</span></div></div></section>
             <div class="tip"><span>i</span><p><span data-i18n="guardTipA">提示的倒计时是</span><strong><span data-i18n="guardTipB">你点出征的时间</span></strong><span data-i18n="guardTipC">，已扣除你的行军时长。建议提前停在派兵页面。</span></p></div>
           </div>

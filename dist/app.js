@@ -10,6 +10,8 @@
   let plan=null, windows=[], validOwn='29', validMargin='0.2', audio=null, toastTimer, storageWarning=false, settingsValid=true, sessionInvalid=false;
   let previousWall=Date.now(),previousMono=performance.now();
   const records=new Map(), errors=new Map(), fired=new Set();
+  let battleNodes={attacks:[],windows:[]};
+  let battleFrame=0,battleTrackWidth=0;
   const now=()=>Date.now();
   function txt(id,value){const el=$(id);if(el&&el.textContent!==String(value))el.textContent=value;}
   function toast(key,params){txt('toast',t(key,params));$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,3600);}
@@ -117,6 +119,44 @@
   function renderGuardTimeline(){
     txt('recorded-count',t('recordCount',{n:records.size}));const sorted=[...records.values()].sort((a,b)=>a.arrivalAt-b.arrivalAt);
     $('guard-timeline').innerHTML=!sorted.length?`<div class="result-placeholder">${t('attackEmpty')}</div>`:sorted.map((r,i)=>`<div class="timeline-row" id="attack-row-${r.id}"><span class="order">${i+1}</span><div><b>${esc(rowName(r,'guard'))}</b><small>${t('attackArrival')}</small></div><div class="time">${clock(r.arrivalAt,true)}<small id="attack-timer-${r.id}"></small></div></div>${windows[i]?`<div class="window-strip ${windows[i].usable?'':'unusable'} ${windows[i].narrow?'narrow-window':''}" id="window-${i}"><span>${t(windows[i].narrow?'narrowGap':windows[i].usable?'availableGap':'insufficientGap')}</span><b>${windows[i].usable?duration(windows[i].width):t('noSafeWindow')}</b>${windows[i].narrow?`<small>${t('hospitalWarning')}</small>`:''}</div>`:''}`).join('')+(sorted.length===1?`<div class="result-placeholder">${t('needOneMore')}</div>`:'');
+    renderBattleTimeline();
+  }
+  function renderBattleTimeline(){
+    const sorted=[...records.values()].sort((a,b)=>a.arrivalAt-b.arrivalAt);
+    $('battle-empty').hidden=!!sorted.length;$('battle-chart').hidden=!sorted.length;
+    const rangeText=(w,kind)=>!w.usable?t('battleBlockedDetail',{before:rowName(w.before,'guard'),after:rowName(w.after,'guard')}):t('battleRange',{kind:t(kind==='departure'?'battleDeparture':'battleArrival'),before:rowName(w.before,'guard'),after:rowName(w.after,'guard'),start:K.formatUtc(kind==='departure'?w.start:w.arrivalStart),end:K.formatUtc(kind==='departure'?w.end:w.arrivalEnd),width:duration(w.width)})+(w.narrow?' · '+t('hospitalWarning'):'');
+    const band=(w,i,kind)=>`<button type="button" id="battle-${kind}-${i}" class="battle-band ${kind} ${!w.usable?'blocked':w.narrow?'narrow':''}" title="${esc(rangeText(w,kind))}" aria-label="${esc(rangeText(w,kind))}" data-battle-detail="${esc(rangeText(w,kind))}" hidden>${w.usable?esc(duration(w.width)):''}</button>`;
+    $('battle-departures').innerHTML=windows.map((w,i)=>w.usable?band(w,i,'departure'):'').join('');
+    $('battle-arrivals').innerHTML=windows.map((w,i)=>band(w,i,'arrival')).join('');
+    $('battle-enemies').innerHTML=sorted.map((r,i)=>`<div class="battle-row" id="battle-enemy-${i}" hidden><span class="battle-label" title="${esc(rowName(r,'guard'))}">${esc(rowName(r,'guard'))}</span><div class="battle-track"><span class="battle-marker" id="battle-marker-${i}" role="img" aria-label="${esc(t('battleAttackDetail',{name:rowName(r,'guard'),time:K.formatUtc(r.arrivalAt)}))}" title="${esc(K.formatUtc(r.arrivalAt))}"><i></i><span>${K.formatUtc(r.arrivalAt).slice(11,23)}</span></span></div></div>`).join('');
+    battleNodes={attacks:sorted.map((r,i)=>({row:$(`battle-enemy-${i}`),marker:$(`battle-marker-${i}`)})),windows:windows.map((w,i)=>({departure:$(`battle-departure-${i}`),arrival:$(`battle-arrival-${i}`)}))};
+    txt('battle-detail',t('battleDetailHint'));
+  }
+  function updateBattleTimeline(time,positionsOnly=false){
+    if(!records.size)return;
+    const view=K.battleTimeline([...records.values()],windows,time);
+    const position=(el,left)=>{el.style.transform=`translateX(${left/100*battleTrackWidth}px)`;};
+    const place=(el,range,active)=>{if(!el)return;if(el.hidden!==!range)el.hidden=!range;if(!range)return;position(el,range.left);el.style.width=range.width+'%';el.classList.toggle('open',active);};
+    view.attacks.forEach((a,i)=>{const {row,marker}=battleNodes.attacks[i];if(row.hidden!==!a.visible)row.hidden=!a.visible;if(a.visible){position(marker,a.left);marker.classList.toggle('align-left',a.left>65);}});
+    view.windows.forEach(({window:w,departure,arrival},i)=>{place(battleNodes.windows[i].departure,departure,time>=w.start&&time<w.end);place(battleNodes.windows[i].arrival,arrival,w.usable&&time>=w.arrivalStart&&time<w.arrivalEnd);});
+    if(positionsOnly)return;
+    const count=view.attacks.filter(a=>a.visible).length,next=view.attacks.find(a=>a.record.arrivalAt>time);
+    let status=t('battleVisible',{time:K.formatUtc(time,false),n:count});
+    if(!count)status+=' · '+(next?t('battleLater',{time:duration(Math.ceil((next.record.arrivalAt-time)/1000))}):t('battleFinished'));
+    if(records.size===1)status+=' · '+t('battleOne');
+    txt('battle-status',status);
+  }
+  function syncBattleAnimation(){
+    if(state.tab!=='guard'||document.hidden||!records.size){if(battleFrame)cancelAnimationFrame(battleFrame);battleFrame=0;return;}
+    if(!battleFrame)battleFrame=requestAnimationFrame(animateBattle);
+  }
+  function animateBattle(){
+    battleFrame=0;
+    if(state.tab!=='guard'||document.hidden||!records.size)return;
+    // Read the current deadline each frame, so adjustments take effect without
+    // easing or a second clock drifting away from the reinforcement countdown.
+    updateBattleTimeline(now(),true);
+    battleFrame=requestAnimationFrame(animateBattle);
   }
   function computeGuard(){windows=K.guardWindows([...records.values()],validOwn,validMargin);renderGuardTimeline();updateTimers();syncDesktopAlarms();}
   function addRow(kind){if(state[kind].length>=30)return toast('rowLimit');state[kind].push(fresh(kind));if(kind==='rally'){dirtyPlan();renderRallyRows();}else renderGuardRows();save();$(kind+'-rows').lastElementChild?.querySelector('input')?.focus();}
@@ -145,6 +185,8 @@
     else{let instruction='twoNeeded',name='waitingEnemy',status='waitingRecord';if(records.size===1){name='needAnother';instruction='needAnotherHint';}else if(records.size>=2){status='noWindow';if(windows.some(w=>w.usable)){name='missed';instruction='missedHint';}else{name='gapShort';instruction='gapShortHint';}}hero('guard',{state:t(status),name:t(name),value:'--:--',instruction:t(instruction),muted:true});txt('guard-departure',t('noTime'));txt('guard-width','—');}
     for(const r of records.values()){const d=(r.arrivalAt-time)/1000;txt(`attack-timer-${r.id}`,d>0?t('attackIn',{time:countdown(d)}):t('attackPassed'));$(`attack-row-${r.id}`)?.classList.toggle('past',d<=0);updateEnemyClock(r,time);}
     windows.forEach((w,i)=>$(`window-${i}`)?.classList.toggle('expired',w.end<=time));
+    if(state.tab==='guard')updateBattleTimeline(time);
+    syncBattleAnimation();
   }
   function syncDesktopAlarms(){
     if(!desktop)return;const events=[];
@@ -196,6 +238,7 @@
   $('start-rally').addEventListener('click',()=>{try{plan=K.makeRallyPlan(state.rally,now(),state.schedule==='fixed'?{target:new Date(state.target).getTime()}:{lead:state.lead});$('rally-dirty').hidden=true;$('stop-rally').disabled=false;showError('rally-error');clearNotice();renderRallyTimeline();updateTimers();syncDesktopAlarms();showResult('rally');toast('planToast');}catch(err){showError('rally-error',err,plan?'oldPlan':null);}});
   $('stop-rally').addEventListener('click',()=>{if(!confirm(t('stopConfirm')))return;plan=null;$('rally-dirty').hidden=true;$('stop-rally').disabled=true;renderRallyTimeline();updateTimers();syncDesktopAlarms();});
   $('own-march').addEventListener('input',applySettings);$('guard-margin').addEventListener('input',applySettings);
+  $('battle-chart').addEventListener('click',e=>{const band=e.target.closest('[data-battle-detail]');if(band)txt('battle-detail',band.dataset.battleDetail);});
   $('language-select').addEventListener('change',e=>changeLanguage(e.target.value));
   $('sound-toggle').addEventListener('click',()=>{state.sound=!state.sound;syncControls();save();syncDesktopAlarms();if(state.sound){initAudio();beep(false);if(!audio)toast('noAudio');}});
   $('focus-toggle').addEventListener('click',async()=>{state.focus=!state.focus;document.body.classList.toggle('focus-mode',state.focus);syncControls();if(desktop)try{await desktop.setCompact(state.focus);}catch{toast('desktopError');}});
@@ -204,8 +247,11 @@
   $('guard-example').addEventListener('click',()=>{if(state.guard.length&&!confirm(t('guardExampleConfirm')))return;records.clear();state.guard=[{...fresh('guard','A'),prepare:'4:00',march:'35'},{...fresh('guard','B'),prepare:'4:00',march:'38'}];renderGuardRows();computeGuard();save();toast('guardExampleToast');});
   $('clear-page').addEventListener('click',()=>{const kind=state.tab;if(!confirm(t('clearConfirm',{tool:t(kind)})))return;state[kind]=[];if(kind==='rally'){plan=null;state.lead='10';state.target='';$('rally-lead').value='10';$('rally-target').value='';setSchedule('auto');$('rally-dirty').hidden=true;$('stop-rally').disabled=true;showError('rally-error');renderRallyRows();renderRallyTimeline();}else{records.clear();state.own=validOwn='29';state.margin=validMargin='0.2';$('own-march').value='29';$('guard-margin').value='0.2';settingsValid=true;showError('guard-settings-error');renderGuardRows();computeGuard();}clearNotice();syncControls();save();updateTimers();syncDesktopAlarms();toast('cleared');});
   restore();I.apply();$('own-march').value=state.own;$('guard-margin').value=state.margin;$('rally-lead').value=state.lead;syncControls();renderRallyRows();renderRallyTimeline();renderGuardRows();computeGuard();setTab(location.hash==='#guard'?'guard':'rally');
+  // Cache the shared track width when layout changes, never read layout during
+  // animation. Transform positioning preserves subpixel movement between ticks.
+  new ResizeObserver(entries=>{battleTrackWidth=entries[0].contentRect.width;if(state.tab==='guard'&&!document.hidden)updateBattleTimeline(now(),true);}).observe($('battle-departures'));
   setInterval(()=>{const wall=Date.now(),mono=performance.now();const clockChanged=Math.abs((wall-previousWall)-(mono-previousMono))>3000;if(clockChanged||wall-previousWall>10000)invalidateSession(clockChanged);previousWall=wall;previousMono=mono;updateTimers();},100);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateTimers();});window.addEventListener('hashchange',()=>setTab(location.hash==='#guard'?'guard':'rally'));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateTimers();else syncBattleAnimation();});window.addEventListener('hashchange',()=>setTab(location.hash==='#guard'?'guard':'rally'));
   if(desktop){$('pin-toggle').hidden=false;desktop.onResume(()=>{invalidateSession();previousWall=Date.now();previousMono=performance.now();});desktop.getWindowState().then(s=>{state.pinned=s.pinned;syncControls();}).catch(()=>{});}
   if(!desktop&&'serviceWorker'in navigator&&['https:','http:'].includes(location.protocol))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();

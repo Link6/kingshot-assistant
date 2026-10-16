@@ -77,6 +77,23 @@
     });
   }
   function nextWindow(windows, now) { return windows.find(w => w.usable && w.end > now) || null; }
+  // Both tracks share wall-clock time; departure is already shifted by own march.
+  function battleTimeline(records, windows, now) {
+    const span = 60000, limit = now + span;
+    const clip = (start, end) => {
+      if (end < start || end <= now || start >= limit) return null;
+      const left = Math.max(now, start), right = Math.min(limit, end);
+      return {left:(left - now) / span * 100, width:(right - left) / span * 100};
+    };
+    return {
+      attacks: [...records].sort((a, b) => a.arrivalAt - b.arrivalAt).map(record => ({record,
+        visible:record.arrivalAt >= now && record.arrivalAt <= limit,
+        left:(record.arrivalAt - now) / span * 100})),
+      windows: windows.map(window => ({window,
+        departure:window.usable ? clip(window.start, window.end) : null,
+        arrival:window.usable ? clip(window.arrivalStart, window.arrivalEnd) : clip(window.before.arrivalAt, window.after.arrivalAt)}))
+    };
+  }
   function nextRallyInstruction(rows, now) {
     const recent = [...rows].reverse().find(r => r.launchAt <= now);
     if (recent && now - recent.launchAt < 1200) return recent;
@@ -110,7 +127,7 @@
     const stage = pet.clockChanged || now < pet.observedAt ? 'uncertain' : now >= end ? 'expired' : now >= warnAt ? 'soon' : 'active';
     return {end, warnAt, remaining:Math.max(0, (end - now) / 1000), stage, needsReview:stage !== 'active'};
   }
-  const api = {parseDuration, makeRallyPlan, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming};
+  const api = {parseDuration, makeRallyPlan, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KingshotTiming = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

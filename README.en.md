@@ -15,6 +15,7 @@ This project is licensed under the [MIT License](LICENSE). Copyright © 2026 Lin
 - **Reinforcement timing:** Record enemy countdowns to calculate when to send reinforcements between consecutive attacks, accounting for your march time and a margin on each side of the gap.
 - **Live countdowns and fine adjustments:** Countdown starts immediately after recording and switches from Rallying to Marching automatically. Adjust recorded times with `−1 / −0.1 / +0.1 / +1 second` buttons.
 - **Narrow-window warning:** When the usable reinforcement window after margins is greater than 0 but less than 1 second, a yellow warning appears: **Reinforcements may fail. Check your hospital capacity.**
+- **Battle timeline:** A rolling 60-second view separates departure and reinforcement arrival windows from individual enemy arrivals. Windows under one second are yellow; gaps without a safe window are gray. Select a band for its full UTC range. Records, fine adjustments and valid march/margin changes update it immediately.
 - **Languages and desktop support:** Switching languages preserves active timers. Electron adds an always-on-top window, compact mode, remembered window position, and background system notifications.
 
 ## How to use
