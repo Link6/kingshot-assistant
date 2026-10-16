@@ -6,6 +6,8 @@
 
 A rally coordination and castle reinforcement timing assistant for Kingshot, with Chinese and English interfaces and an Electron desktop app. No account is required. Calculations run on your device, and common inputs are saved locally.
 
+Scripts and styles use content-hashed filenames so updated HTML cannot reuse stale assets. Normal online refreshes prefer the latest HTML; offline use restores a complete cached build. Updates do not automatically reload active timers. Run `npm run prepare:web` after editing source files; local serving, tests, desktop packaging, and Pages deployment also prepare assets automatically.
+
 This project is licensed under the [MIT License](LICENSE). Copyright © 2026 Link6.
 
 ## Features

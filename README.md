@@ -113,7 +113,9 @@ npm run desktop
 
 仓库 **Settings → Pages → Source** 选择 **GitHub Actions**。推送到 `main` 后，[Deploy GitHub Pages](.github/workflows/pages.yml) 会先运行测试，再部署 `dist/`。
 
-资源路径、离线缓存和本地存储支持 `/kingshot-assistant/` 项目路径。在线加载并完成缓存后，可离线使用网页。若更新后仍显示旧界面，请强制刷新；必要时关闭页面后重新打开。
+资源路径、离线缓存和本地存储支持 `/kingshot-assistant/` 项目路径。脚本和样式使用内容哈希文件名，发布时自动生成，避免新页面混用旧资源。联网时普通刷新优先读取最新页面；断网时使用完整的离线缓存版本。更新不会自动重载正在计时的页面。
+
+修改网页源文件后运行 `npm run prepare:web` 生成配套资源；本地服务器、测试、桌面打包和 GitHub Pages 发布也会自动生成。
 
 ## 数据与计时说明
 

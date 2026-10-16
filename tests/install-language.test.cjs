@@ -60,6 +60,8 @@ test('both manifests identify the same app at root or nested paths and are cache
   assert.ok(sw.includes("'./manifest.webmanifest'"));assert.ok(sw.includes("'./manifest.en.webmanifest'"));
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   assert.match(html,/<link rel="manifest">/);
-  assert.match(html,/<script src="i18n\.js"><\/script>/);
-  assert.ok(html.indexOf('src="i18n.js"')<html.indexOf('src="install.js"'));
+  const i18n=html.match(/<script src="(assets\/i18n-[a-f0-9]{16}\.js)"><\/script>/);
+  const install=html.match(/src="(assets\/install-[a-f0-9]{16}\.js)"/);
+  assert.ok(i18n);assert.ok(install);
+  assert.ok(html.indexOf(i18n[1])<html.indexOf(install[1]));
 });

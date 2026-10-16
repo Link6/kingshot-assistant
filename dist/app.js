@@ -253,5 +253,5 @@
   setInterval(()=>{const wall=Date.now(),mono=performance.now();const clockChanged=Math.abs((wall-previousWall)-(mono-previousMono))>3000;if(clockChanged||wall-previousWall>10000)invalidateSession(clockChanged);previousWall=wall;previousMono=mono;updateTimers();},100);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateTimers();else syncBattleAnimation();});window.addEventListener('hashchange',()=>setTab(location.hash==='#guard'?'guard':'rally'));
   if(desktop){$('pin-toggle').hidden=false;desktop.onResume(()=>{invalidateSession();previousWall=Date.now();previousMono=performance.now();});desktop.getWindowState().then(s=>{state.pinned=s.pinned;syncControls();}).catch(()=>{});}
-  if(!desktop&&'serviceWorker'in navigator&&['https:','http:'].includes(location.protocol))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if(!desktop&&'serviceWorker'in navigator&&['https:','http:'].includes(location.protocol))navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(()=>{});
 })();

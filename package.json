@@ -8,6 +8,13 @@
   "engines": { "node": ">=24" },
   "main": "electron/main.cjs",
   "scripts": {
+    "prepare:web": "node scripts/prepare-web-assets.cjs",
+    "pretest": "node scripts/prepare-web-assets.cjs",
+    "predesktop": "node scripts/prepare-web-assets.cjs",
+    "predesktop:smoke": "node scripts/prepare-web-assets.cjs",
+    "predist:win": "node scripts/prepare-web-assets.cjs",
+    "predist:mac": "node scripts/prepare-web-assets.cjs",
+    "predist:linux": "node scripts/prepare-web-assets.cjs",
     "start": "node server.cjs",
     "test": "node --test tests/*.test.cjs",
     "desktop": "electron .",
