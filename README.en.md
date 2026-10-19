@@ -12,7 +12,7 @@ This project is licensed under the [MIT License](LICENSE). Copyright © 2026 Lin
 
 ## Features
 
-- **Room collaboration:** Discord membership verification gates access to 8-character rooms. Hosts appoint commanders; enemy records, fine adjustments and teammates' march times update across the room. Server-side room, expiry and update limits protect the free-tier quota. Countdown animation stays local. See [setup and permissions](supabase/README.md).
+- **Room collaboration:** Discord membership verification gates access to 8-character rooms. Members join as joiners and only update their own march time. Hosts and commanders select members as rally leaders or add leaders manually, and set their preparation times. Only selected leaders enter the schedule. Hosts appoint commanders; enemy records and fine adjustments update across the room. Server-side room, expiry and update limits protect the free-tier quota. Countdown animation stays local. See [setup and permissions](supabase/README.md).
 
 - **Rally coordination:** Calculate when each leader should start a rally so multiple rallies reach the same target together. Use an automatic schedule or set a shared arrival time.
 - **UTC clock and schedule:** View the current UTC time and copy a compact list of leader names and UTC rally start times, sorted by launch order, to share with your team.

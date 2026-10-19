@@ -13,14 +13,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Kingshot">
   <!-- Select the installation language before the browser fetches a manifest. -->
-  <script src="assets/i18n-ab2184fe2c9b5d5e.js"></script>
-  <link rel="stylesheet" href="assets/styles-aedf2894a0c2c78d.css">
+  <script src="assets/i18n-99a35b54aefb1dd6.js"></script>
+  <link rel="stylesheet" href="assets/styles-357256d60f04c82f.css">
   <script src="assets/install-ff9ccd4e38b61f8b.js" defer></script>
   <script src="assets/core-66de00e4c70ebcf3.js" defer></script>
   <script src="assets/supabase-ee3be8de192b97cb.js" defer></script>
   <script src="assets/roomconfig-f4b9c6854684fe8f.js" defer></script>
-  <script src="assets/app-add63cabf681fe4d.js" defer></script>
-  <script src="assets/rooms-1d9859420b84d998.js" defer></script>
+  <script src="assets/app-4e33b1472536269e.js" defer></script>
+  <script src="assets/rooms-7aecdcf553f76c02.js" defer></script>
 </head>
 <body>
   <aside class="sidebar">
@@ -53,8 +53,12 @@
           <div id="room-live" hidden>
             <div class="room-live-header"><strong id="room-code"></strong><button id="room-copy" class="text-button" data-i18n="roomCopy">复制房间码</button><button id="room-leave" class="text-button subtle"></button></div>
             <p id="room-sync" class="room-sync" role="status"></p>
-            <div class="room-personal field-grid"><label><span data-i18n="roomPrepare">我的集结准备（秒）</span><input id="room-prepare" inputmode="decimal" value="300"></label><label><span data-i18n="roomMarch">我到目标的行军（秒）</span><input id="room-march" inputmode="decimal"></label></div><button id="room-save-self" class="button secondary" data-i18n="roomSaveSelf">共享我的时间</button>
+            <div class="room-personal"><label><span data-i18n="roomMarch">我到目标的行军（秒）</span><input id="room-march" inputmode="decimal"></label></div><button id="room-save-self" class="button secondary" data-i18n="roomSaveSelf">更新我的行军时间</button>
+            <p class="field-note" data-i18n="roomJoinerHint">加入房间默认是 joiner。只有房主或指挥选中的车头会参与集结排程。</p>
             <div id="room-members" class="room-members"></div>
+            <section class="room-leader-section" aria-labelledby="room-leader-title"><h3 id="room-leader-title" data-i18n="roomLeaderTitle">车头名单 / Rally leaders</h3><p class="field-note" data-i18n="roomLeaderHint">房主和指挥选择车头并更新集结准备时间。关联成员的行军时间由本人更新；未进房间的车头可手动添加。</p><div id="room-leaders" class="room-members"></div>
+              <form id="room-leader-form" hidden><div class="field-grid"><label><span data-i18n="roomLeaderSource">选择成员或手动添加</span><select id="room-leader-source"></select></label><label><span data-i18n="name">昵称</span><input id="room-leader-name" maxlength="40" required></label><label><span data-i18n="roomLeaderPrepare">集结准备（秒）</span><input id="room-leader-prepare" inputmode="decimal" value="300" required></label><label><span data-i18n="march">行军时间</span><input id="room-leader-march" inputmode="decimal" required></label></div><p id="room-leader-march-hint" class="field-note" data-i18n="roomLeaderMarchHint" hidden>关联成员的行军时间由本人共享，无需指挥填写。</p><div class="room-leader-actions"><button id="room-leader-save" type="submit" class="button secondary" data-i18n="roomLeaderAdd">添加车头</button><button id="room-leader-cancel" type="button" class="text-button subtle" data-i18n="roomLeaderCancel" hidden>取消编辑</button></div></form>
+            </section>
             <form id="room-enemy-form" hidden><h3 data-i18n="roomEnemyTitle">指挥：记录并共享敌方</h3><label><span data-i18n="roomEnemySelect">敌方队伍</span><select id="room-enemy-select"></select></label><div class="field-grid"><label><span data-i18n="name">昵称</span><input id="room-enemy-name" maxlength="40" required></label><label><span data-i18n="stage">阶段</span><select id="room-enemy-mode"><option value="gathering" data-i18n="gathering">集结中</option><option value="marching" data-i18n="marching">行军中</option></select></label><label><span data-i18n="prepareRemaining">集结剩余时间</span><input id="room-enemy-prepare" value="300" inputmode="decimal"></label><label><span data-i18n="march">行军时间</span><input id="room-enemy-march" inputmode="decimal" required></label></div><button type="submit" class="button secondary" data-i18n="roomRecord">记录现在并同步</button><p class="field-note" data-i18n="roomRecordHint">游戏倒计时走到输入读数时点击。下方敌方列表的微调和删除会同步给全房间。</p></form>
           </div>
           <p class="room-limits" data-i18n="roomLimits">免费配额保护：每人 1 房，全站 3 房，每房 30 人，6 小时过期。共享修改会计入每日额度。</p>

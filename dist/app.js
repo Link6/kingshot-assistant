@@ -228,13 +228,13 @@
       if(!roomBackup){roomBackup={rally:state.rally,guard:state.guard,plan,records:[...records],own:state.own};plan=null;$('stop-rally').disabled=true;$('rally-dirty').hidden=true;renderRallyTimeline();}
       const previous=sharedRoom;sharedRoom=snapshot;roomOnline=online;
       const enemiesChanged=JSON.stringify(previous?.enemies)!==JSON.stringify(snapshot.enemies);
-      const membersChanged=JSON.stringify(previous?.members)!==JSON.stringify(snapshot.members);
+      const leadersChanged=JSON.stringify(previous?.leaders)!==JSON.stringify(snapshot.leaders);
       if(enemiesChanged||records.size!==snapshot.enemies.length){
         state.guard=snapshot.enemies.map(e=>({...fresh('guard'),id:e.id,name:e.name,mode:e.mode,prepare:String(e.prepare),march:String(e.march)}));
         records.clear();snapshot.enemies.forEach((e,index)=>records.set(e.id,{id:e.id,name:e.name,mode:e.mode,index,marchSeconds:Number(e.march),recordedAt:e.recordedAt-offset,departAt:e.departAt-offset,arrivalAt:e.arrivalAt-offset,draft:battleDraft(state.guard[index])}));
         renderGuardRows();computeGuard();
       }
-      if(membersChanged){state.rally=snapshot.members.filter(m=>m.march>0).slice(0,30).map(m=>({...fresh('rally'),id:m.id,name:m.name,prepare:String(m.prepare),march:String(m.march)}));dirtyPlan();renderRallyRows();}
+      if(leadersChanged){state.rally=(snapshot.leaders||[]).slice(0,30).map(m=>({...fresh('rally'),id:m.id,name:m.name,prepare:String(m.prepare),march:m.march==null?'':String(m.march)}));dirtyPlan();renderRallyRows();}
       clearNotice();lockRoomControls();updateTimers();syncDesktopAlarms();
     },
     clear(){
