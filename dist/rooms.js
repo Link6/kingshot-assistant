@@ -89,14 +89,14 @@
   }
   function renderEnemyCard(r){
     const stopped=r.active===false,actions=canCommand()?`<div class="room-leader-actions"><button class="text-button" ${stopped?'data-enemy-rerecord':'data-enemy-stop'}>${t(stopped?'enemyRecordAgain':'enemyStop')}</button><button class="text-button subtle" data-enemy-delete>${t('delete')}</button></div>`:'';
-    const clock=stopped?`<p class="field-note">${t('enemyStopHint')}</p>`:`<p>${K.formatUtc(r.arrivalAt)}</p><div class="order-countdown"><span data-enemy-stage></span><strong data-enemy-time></strong></div>`;
-    const adjust=!stopped&&canCommand()?['prepare','march'].map(field=>`<div class="enemy-adjust-group"><small>${t(field==='prepare'?'prepareAdjust':'marchAdjust')}</small><div class="time-nudges">${[-1,-0.1,0.1,1].map(d=>`<button data-enemy-field="${field}" data-delta="${d}">${d>0?'+':'−'}${Math.abs(d)}s</button>`).join('')}</div></div>`).join(''):'';
-    return `<article class="rally-order ${stopped?'enemy-stopped':''}" data-enemy-id="${esc(r.id)}"><header><b>${esc(r.name)}</b>${stopped?`<span class="pill neutral">${t('enemyStopped')}</span>`:''}${actions}</header>${clock}${adjust}</article>`;
+    const controls=field=>canCommand()?`<div class="time-nudges" role="group" aria-label="${esc(t(field==='prepare'?'prepareAdjust':'marchAdjust'))}">${[-1,-0.1,0.1,1].map(d=>`<button data-enemy-field="${field}" data-delta="${d}">${d>0?'+':'−'}${Math.abs(d)}s</button>`).join('')}</div>`:'';
+    const clock=stopped?`<p class="field-note">${t('enemyStopHint')}</p>`:`<div class="enemy-comparison"><section class="enemy-comparison-clock" data-enemy-prepare-block ${r.mode==='marching'?'hidden':''}><span>${t('prepareMinuteSecond')}</span><strong data-enemy-prepare></strong>${controls('prepare')}</section><section class="enemy-comparison-clock"><span data-enemy-march-label></span><strong data-enemy-march></strong>${controls('march')}</section></div><div class="enemy-arrival-reading"><span>${t('enemyArrivalIn')}</span><strong data-enemy-time></strong><small>${K.formatUtc(r.arrivalAt)}</small></div>`;
+    return `<article class="rally-order ${stopped?'enemy-stopped':''}" data-enemy-id="${esc(r.id)}"><header><b>${esc(r.name)}</b><span class="pill neutral" ${stopped?'':'data-enemy-stage'}>${stopped?t('enemyStopped'):''}</span>${actions}</header>${clock}</article>`;
   }
   function editEnemy(enemy,restart=false){
     $('room-enemy-select').value=enemy.id;$('room-enemy-name').value=enemy.name;
     $('room-enemy-mode').value=restart?'gathering':enemy.mode;$('room-enemy-march').value=String(enemy.march);
-    $('room-enemy-prepare').value=String(restart&&!enemy.prepare?300:enemy.prepare);
+    $('room-enemy-prepare').value=K.formatMinutesSeconds(restart&&!enemy.prepare?300:enemy.prepare);
     $('room-enemy-editor').open=true;renderStatus();
   }
   function showOrder(title,value,instruction,range='',go=false){
@@ -108,7 +108,16 @@
     tickPersonalPet();
     const time=Date.now()+offset,rows=room.plan?.rows||[];$('room-order').classList.remove('narrow-window');
     UI.tick($('room-orders'),rows,time);
-    for(const r of enemyRecords){const card=$('room-defense-rows').querySelector(`[data-enemy-id="${CSS.escape(r.id)}"]`);if(!card)continue;const live=K.enemyCountdown(r,time);card.querySelector('[data-enemy-stage]').textContent=t(live.stage==='arrived'?'attackPassed':live.stage);card.querySelector('[data-enemy-time]').textContent=UI.countdown((r.arrivalAt-time)/1000);card.querySelectorAll('[data-enemy-field="prepare"]').forEach(b=>b.disabled=!connected||busy||live.stage!=='gathering');}
+    for(const r of enemyRecords){
+      const card=$('room-defense-rows').querySelector(`[data-enemy-id="${CSS.escape(r.id)}"]`);if(!card)continue;
+      const live=K.enemyCountdown(r,time);
+      card.querySelector('[data-enemy-stage]').textContent=t(live.stage==='arrived'?'attackPassed':live.stage);
+      card.querySelector('[data-enemy-prepare]').textContent=K.formatMinutesSeconds(Math.ceil(live.prepare*10)/10);
+      card.querySelector('[data-enemy-march-label]').textContent=t(live.stage==='gathering'?'marchFull':'marchRemaining');
+      card.querySelector('[data-enemy-march]').textContent=I.number(Math.ceil(live.march*10)/10)+' '+t('seconds');
+      card.querySelector('[data-enemy-time]').textContent=UI.countdown((r.arrivalAt-time)/1000);
+      card.querySelectorAll('[data-enemy-field="prepare"]').forEach(b=>b.disabled=!connected||busy||live.stage!=='gathering');
+    }
     if(!connected){showOrder(t('roomOfflineShort'),'—',t('roomOffline'));return;}
     if(room.battle.mode==='hold'){showOrder(t('battleHold'),'—',t('waitCommander'));return;}
     if(!checked(me())){showOrder(t('checkMarchFirst'),'—',t('marchNeedsCheck'));return;}
@@ -288,6 +297,7 @@
       renderStatus();
     });
     $('room-enemy-mode').addEventListener('change',renderStatus);
+    $('room-enemy-prepare').addEventListener('blur',()=>{try{$('room-enemy-prepare').value=K.formatMinutesSeconds(K.parseDuration($('room-enemy-prepare').value));}catch{}});
     $('room-enemy-form').addEventListener('submit',e=>{
       e.preventDefault();const at=Date.now()+offset;
       try{const enemy=allEnemies().find(x=>x.id===$('room-enemy-select').value),mode=$('room-enemy-mode').value;

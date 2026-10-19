@@ -1,7 +1,7 @@
 // Each project on the same github.io origin owns only its own cache namespace.
 const PREFIX=`kingshot:${self.registration.scope}:`;
-const CACHE=PREFIX+'web-57d848090694363e';
-const ASSETS=['./','./index.html','./assets/i18n-941808cd9657cbdb.js','./assets/install-ff9ccd4e38b61f8b.js','./assets/core-d4e54e9c81196b37.js','./assets/battle-ui-8a5a1cbcdc19f167.js','./assets/app-1a339777e82c2c7c.js','./assets/styles-99444024ff6af17a.css','./assets/supabase-ee3be8de192b97cb.js','./assets/roomconfig-f4b9c6854684fe8f.js','./assets/rooms-1794410d44b865b8.js','./icon.svg','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./manifest.webmanifest','./manifest.en.webmanifest'];
+const CACHE=PREFIX+'web-d8542c8cf3510049';
+const ASSETS=['./','./index.html','./assets/i18n-4f9c87e1e4bc3400.js','./assets/install-ff9ccd4e38b61f8b.js','./assets/core-d008296aa8409c50.js','./assets/battle-ui-8a5a1cbcdc19f167.js','./assets/app-328407d1863ff4c2.js','./assets/styles-1fa2104c49f440ff.css','./assets/supabase-ee3be8de192b97cb.js','./assets/roomconfig-f4b9c6854684fe8f.js','./assets/rooms-4beeda0dfdb90fd9.js','./icon.svg','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./manifest.webmanifest','./manifest.en.webmanifest'];
 const URLs=new Set(ASSETS.map(p=>new URL(p,self.registration.scope).href));
 async function installSnapshot(){
   const cache=await caches.open(CACHE);

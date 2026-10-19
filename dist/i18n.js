@@ -1,6 +1,9 @@
 (function(root){
   "use strict";
   const catalogue = {
+  "prepareMinuteSecond":["集结剩余（分:秒）","Rally remaining (min:sec)"],
+  "minuteSecondUnit":["分:秒","min:sec"],
+  "enemyArrivalIn":["距离攻击到达","Until attack arrival"],
   "enemyStop":["停止计时","Stop timer"],"enemyStopped":["已停止","Stopped"],
   "enemyRecordAgain":["重新记录","Record again"],
   "enemyStopHint":["本队已停止，不参与补兵窗口。敌方重新发起后，请重新读取并记录倒计时。","This attack is stopped and excluded from reinforcement windows. Read and record a fresh countdown when the enemy starts again."],

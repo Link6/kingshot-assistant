@@ -40,6 +40,11 @@
     if (result.some(r => r.launchAt <= now)) throw new TimingError('tooLate');
     return {target, rows: result.sort((a, b) => a.launchAt - b.launchAt)};
   }
+  function formatMinutesSeconds(value) {
+    const milliseconds=Math.round(parseDuration(value)*1000),whole=Math.floor(milliseconds/1000);
+    const fraction=String(milliseconds%1000).padStart(3,'0').replace(/0+$/,'');
+    return Math.floor(whole/60)+':'+String(whole%60).padStart(2,'0')+(fraction?'.'+fraction:'');
+  }
   function recordEnemy(row, now) {
     const prepare = row.mode === 'marching' ? 0 : parseDuration(row.prepare);
     const march = parseDuration(row.march, false);
@@ -160,7 +165,7 @@
     if(timing.stage==='uncertain')return true;
     return !Number.isFinite(confirmedAt)||confirmedAt<(timing.stage==='expired'?timing.end:timing.warnAt);
   }
-  const api = {parseDuration, makeRallyPlan, adjustRallyPlan, rallyGaps, rallyTiming, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming, petMarchReview};
+  const api = {parseDuration, formatMinutesSeconds, makeRallyPlan, adjustRallyPlan, rallyGaps, rallyTiming, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming, petMarchReview};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KingshotTiming = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

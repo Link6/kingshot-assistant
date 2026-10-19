@@ -6,6 +6,14 @@ test('accept game duration formats and reject ambiguous or invalid readings', ()
   for (const input of ['', '-1', '4:60', '1:99:00', 'NaN', 'Infinity', '5abc', '604801']) assert.throws(() => parseDuration(input));
   assert.throws(() => parseDuration('0',false));
 });
+
+test('minute-second readings retain game clock boundaries and fractional adjustments', () => {
+  const {formatMinutesSeconds}=require('../dist/core.js');
+  for(const [seconds,reading] of [[300,'5:00'],[280,'4:40'],[59.9,'0:59.9'],[60.1,'1:00.1'],[29.125,'0:29.125'],[3600,'60:00'],[0,'0:00']]){
+    assert.equal(formatMinutesSeconds(seconds),reading);
+    assert.equal(parseDuration(reading),seconds);
+  }
+});
 test('different preparation and marching times lead to one arrival, longest total starts first', () => {
   const now = 100000;
   const plan = makeRallyPlan([{id:1,name:'A',prepare:'5:00',march:'35'},{id:2,name:'B',prepare:'1:00',march:'50'},{id:3,name:'C',prepare:'5:00',march:'20'}],now,{lead:10});
