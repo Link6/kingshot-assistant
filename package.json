@@ -1,7 +1,7 @@
 {
   "name": "kingshot-timing-assistant",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Offline rally coordination and reinforcement timing for Kingshot",
   "author": "Link6",
   "license": "MIT",
@@ -63,7 +63,8 @@
     "mac": {
       "target": "dmg",
       "icon": "electron/icons/icon.icns",
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "artifactName": "Kingshot-Assistant-${version}-${arch}.${ext}"
     },
     "dmg": {
       "icon": "electron/icons/icon.icns"
@@ -71,7 +72,8 @@
     "linux": {
       "target": "AppImage",
       "icon": "electron/icons/icon.png",
-      "category": "Utility"
+      "category": "Utility",
+      "artifactName": "Kingshot-Assistant-${version}-${arch}.${ext}"
     },
     "publish": [
       {
