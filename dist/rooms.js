@@ -3,7 +3,7 @@
   const $=id=>document.getElementById(id),I=window.KingshotI18n,K=window.KingshotTiming,B=window.KingshotRoomBridge;
   const UI=window.KingshotBattleUI,t=(k,p)=>I.t(k,p),cfg=window.KingshotRoomConfig,esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const scope=new URL('.',location.href).pathname,storageKey=`kingshot:${scope}:room`,providerKey=storageKey+':discord';
-  let client,session=null,allowed=false,room=null,channel=null,busy=false,connected=false,realtimeReady=false,offset=0,bestRtt=Infinity,uncertainty=0,reading=false,refreshTimer,verifiedAt=0,leaderEdit=null,defenseWindows=[],enemyRecords=[],roomEpoch=0;
+  let client,session=null,allowed=false,room=null,channel=null,busy=false,connected=false,realtimeReady=false,offset=0,bestRtt=Infinity,uncertainty=0,reading=false,refreshTimer,verifiedAt=0,leaderEdit=null,defenseWindows=[],enemyRecords=[],roomEpoch=0,personalPet=null;
   const role=()=>room?.members.find(m=>m.id===room.me)?.role;
   const roleText=r=>t(r==='owner'?'roomOwner':r==='commander'?'roomCommander':'roomMember');
   function error(key){$('room-error').hidden=!key;$('room-error').textContent=key?t(key):'';}
@@ -12,6 +12,29 @@
   const canCommand=()=>['owner','commander'].includes(role());
   const checked=m=>!!m?.march&&m.marchUpdatedAt>=room.battle.marchCheckAt;
   const modeKey=mode=>mode==='attack'?'battleAttackMode':mode==='defend'?'battleDefend':'battleHold';
+  const petKey=()=>storageKey+':pet:'+room.me;
+  function savePersonalPet(){try{if(personalPet)localStorage.setItem(petKey(),JSON.stringify(personalPet));else localStorage.removeItem(petKey());$('room-pet-error').hidden=true;}catch{$('room-pet-error').textContent=t('storageUnavailable');$('room-pet-error').hidden=false;}}
+  function loadPersonalPet(){
+    personalPet=null;try{personalPet=K.restorePetEstimate(JSON.parse(localStorage.getItem(petKey())||'null'));}catch{}
+    $('room-pet-elapsed').value=personalPet?String(Math.round(Math.min(120,Math.max(0,(Date.now()-personalPet.startedAt)/60000))*10)/10):'0';
+    $('room-pet-error').hidden=true;
+  }
+  function tickPersonalPet(){
+    if(!room)return;
+    const time=Date.now(),timing=K.petTiming(personalPet,time),review=K.petMarchReview(personalPet,me()?.marchUpdatedAt==null?NaN:me().marchUpdatedAt-offset,time);
+    $('room-pet-live').hidden=!timing;$('room-pet-clear').hidden=!timing;
+    $('room-own-pet').classList.toggle('warning',!!timing?.needsReview);
+    $('room-pet-save').textContent=t(timing?'roomPetUpdate':'roomPetStart');
+    if(timing){
+      $('room-pet-countdown').textContent=timing.stage==='uncertain'?'—':UI.countdown(Math.ceil(timing.remaining)).split('.')[0];
+      $('room-pet-end').textContent=t('petEndAt',{time:K.formatUtc(timing.end,false)});
+      $('room-pet-warning').hidden=!timing.needsReview;
+      $('room-pet-warning').textContent=timing.needsReview?t(timing.stage==='uncertain'?'petUncertain':timing.stage==='expired'?'roomPetExpired':'roomPetSoon'):'';
+      if(timing.needsReview&&timing.stage!=='uncertain'&&!personalPet.alerted){personalPet.alerted=true;savePersonalPet();if(time>=timing.warnAt&&time-timing.warnAt<5000)B.cue('personal-pet:'+room.me+':'+personalPet.startedAt,time,time,time+1200);}
+    }
+    $('room-march-status').textContent=t(!checked(me())?'marchNeedsCheck':review?'roomPetMarchReview':'marchChecked');
+    $('room-march-status').classList.toggle('needs-check',!checked(me())||review);
+  }
   function renderStatus(){
     $('room-summary').textContent=t(allowed?'roomVerified':'roomSolo');
     $('room-account').textContent=t(allowed?'roomVerified':session?'roomVerify':'roomNeedLogin');
@@ -25,8 +48,7 @@
     $('room-sync').classList.toggle('disconnected',!connected);
     $('room-battle-mode').textContent=t(modeKey(room.battle.mode));
     $('room-my-role').textContent=t(room.leaders.some(l=>l.userId===room.me)?'roomLeaderBadge':'roomJoinerBadge');
-    $('room-march-status').textContent=t(checked(me())?'marchChecked':'marchNeedsCheck');
-    $('room-march-status').classList.toggle('needs-check',!checked(me()));
+    tickPersonalPet();
     $('room-announcement').hidden=!room.battle.note;$('room-announcement').textContent=room.battle.note;
     $('room-command').hidden=!canCommand();
     $('room-attack').hidden=room.battle.mode==='defend';$('room-defense').hidden=room.battle.mode!=='defend';
@@ -70,6 +92,7 @@
   }
   function tick(){
     if(!room||document.hidden)return;
+    tickPersonalPet();
     const time=Date.now()+offset,rows=room.plan?.rows||[];$('room-order').classList.remove('narrow-window');
     UI.tick($('room-orders'),rows,time);
     for(const r of enemyRecords){const card=$('room-defense-rows').querySelector(`[data-enemy-id="${CSS.escape(r.id)}"]`);if(!card)continue;const live=K.enemyCountdown(r,time);card.querySelector('[data-enemy-stage]').textContent=t(live.stage==='arrived'?'attackPassed':live.stage);card.querySelector('[data-enemy-time]').textContent=UI.countdown((r.arrivalAt-time)/1000);card.querySelectorAll('[data-enemy-field="prepare"]').forEach(b=>b.disabled=!connected||busy||live.stage!=='gathering');}
@@ -135,7 +158,7 @@
     if(!snapshot?.roomId)return;
     if(room&&room.roomId===snapshot.roomId&&snapshot.revision<room.revision)return;
     const first=!room,previous=room,changed=first||snapshot.revision!==room.revision;room=snapshot;room.leaders=room.leaders||[];room.battle=room.battle||{mode:'hold',note:'',margin:0.2,marchCheckAt:Infinity};
-    if(first){leaderEdit=null;$('room-leader-form').reset();const me=room.members.find(m=>m.id===room.me);$('room-march').value=me.march==null?'':String(me.march);}
+    if(first){leaderEdit=null;$('room-leader-form').reset();const me=room.members.find(m=>m.id===room.me);$('room-march').value=me.march==null?'':String(me.march);loadPersonalPet();}
     if(first||previous.battle.note!==room.battle.note)$('room-command-note').value=room.battle.note;
     if(first||previous.battle.margin!==room.battle.margin)$('room-command-margin').value=String(room.battle.margin);
     B.setActive(true);saveCode(room.code);if(changed)renderMembers();online(true);
@@ -229,6 +252,8 @@
     $('room-create').addEventListener('click',()=>run('create',{name:$('room-name').value.trim()}));
     $('room-join').addEventListener('click',()=>run('join',{name:$('room-name').value.trim()},$('room-code-input').value.trim().toUpperCase()));
     $('room-save-self').addEventListener('click',()=>{try{run('member',{march:K.parseDuration($('room-march').value,false)});}catch{error('roomInvalid');}});
+    $('room-pet-save').addEventListener('click',()=>{if(!room)return;try{personalPet=K.makePetEstimate($('room-pet-elapsed').value,Date.now());savePersonalPet();tickPersonalPet();}catch{$('room-pet-error').textContent=t('petElapsedInvalid');$('room-pet-error').hidden=false;}});
+    $('room-pet-clear').addEventListener('click',()=>{if(!room)return;personalPet=null;savePersonalPet();tickPersonalPet();});
     $('room-members').addEventListener('change',e=>{if(e.target.dataset.roomRole)run('role',{userId:e.target.dataset.roomRole,role:e.target.value});});
     $('room-leader-source').addEventListener('change',()=>{if(!$('room-leader-source').value){$('room-leader-name').value='';$('room-leader-march').value='';}leaderSource();});
     $('room-leader-cancel').addEventListener('click',resetLeader);
@@ -283,7 +308,7 @@
     },30000);
     window.addEventListener('offline',()=>online(false));
     window.addEventListener('online',()=>{if(room)refresh();});
-    window.addEventListener('kingshot:room-resync',()=>{bestRtt=Infinity;online(false);refresh();});
+    window.addEventListener('kingshot:room-resync',e=>{if(e.detail?.clockChanged&&room&&personalPet){personalPet.clockChanged=true;savePersonalPet();}bestRtt=Infinity;online(false);refresh();});
     document.addEventListener('visibilitychange',()=>{if(!document.hidden&&room)refresh();});
     renderStatus();
   }

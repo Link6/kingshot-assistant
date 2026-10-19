@@ -154,7 +154,13 @@
     const stage = pet.clockChanged || now < pet.observedAt ? 'uncertain' : now >= end ? 'expired' : now >= warnAt ? 'soon' : 'active';
     return {end, warnAt, remaining:Math.max(0, (end - now) / 1000), stage, needsReview:stage !== 'active'};
   }
-  const api = {parseDuration, makeRallyPlan, adjustRallyPlan, rallyGaps, rallyTiming, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming};
+  function petMarchReview(pet, confirmedAt, now) {
+    const timing=petTiming(pet,now);
+    if(!timing?.needsReview)return false;
+    if(timing.stage==='uncertain')return true;
+    return !Number.isFinite(confirmedAt)||confirmedAt<(timing.stage==='expired'?timing.end:timing.warnAt);
+  }
+  const api = {parseDuration, makeRallyPlan, adjustRallyPlan, rallyGaps, rallyTiming, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming, petMarchReview};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KingshotTiming = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

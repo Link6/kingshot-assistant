@@ -43,7 +43,7 @@ begin
         plan_id=case when new_mode='attack' then plan_id else null end,
         plan_target=case when new_mode='attack' then plan_target else null end,
         command_note=coalesce(p_data->>'note',command_note),battle_margin=coalesce((p_data->>'margin')::numeric,battle_margin),
-        march_check_at=case when coalesce((p_data->>'check')::boolean,false) or (new_mode='defend' and battle_mode<>'defend') then clock_timestamp() else march_check_at end
+        march_check_at=case when coalesce((p_data->>'check')::boolean,false) then clock_timestamp() else march_check_at end
       where id=r.id;
       if new_mode<>'attack' then delete from kingshot_private.rally_orders where room_id=r.id; end if;
     elsif p_action='publish' then

@@ -47,10 +47,11 @@ begin
   s:=public.kingshot_room('command',c,jsonb_build_object('mode','defend','revision',s#>'{battle,revision}','note','Defend castle','margin',0.3));
   if s#>>'{battle,mode}'<>'defend' or s#>>'{battle,note}'<>'Defend castle' then raise exception 'TEST command shared';end if;
   if s->'plan'<>'null'::jsonb then raise exception 'TEST changing operation cancels old attack orders';end if;
-  if (select march_updated_at>=(select march_check_at from kingshot_private.rooms where id=rid) from kingshot_private.members where room_id=rid and user_id=member_id) then raise exception 'TEST defense requests fresh march check';end if;
+  if not (select march_updated_at>=(select march_check_at from kingshot_private.rooms where id=rid) from kingshot_private.members where room_id=rid and user_id=member_id) then raise exception 'TEST mode switch must preserve march confirmation';end if;
   rev:=(s#>>'{battle,revision}')::bigint;
   begin perform public.kingshot_room('command',c,jsonb_build_object('mode','hold','revision',rev-1));raise exception 'TEST stale command';exception when others then if sqlerrm<>'KS_CONFLICT' then raise;end if;end;
-  begin perform public.kingshot_room('publish',c,jsonb_build_object('revision',rev));raise exception 'TEST defense check prevents stale publish';exception when others then if sqlerrm<>'KS_MARCH_CHECK' then raise;end if;end;
+  s:=public.kingshot_room('command',c,jsonb_build_object('mode','defend','revision',rev,'check',true));
+  begin perform public.kingshot_room('publish',c,jsonb_build_object('revision',s#>'{battle,revision}'));raise exception 'TEST explicit check prevents stale publish';exception when others then if sqlerrm<>'KS_MARCH_CHECK' then raise;end if;end;
   perform set_config('request.jwt.claim.sub',member_id::text,true);
   s:=public.kingshot_room('member',c,jsonb_build_object('march',21));
   perform set_config('request.jwt.claim.sub',owner::text,true);

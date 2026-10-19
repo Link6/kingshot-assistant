@@ -207,7 +207,7 @@
   }
   function invalidateSession(clockChanged=false){
     if(clockChanged){for(const r of [...state.rally,...state.guard])if(r.pet)r.pet.clockChanged=true;save();}
-    if(roomActive)window.dispatchEvent(new Event('kingshot:room-resync'));
+    if(roomActive)window.dispatchEvent(new CustomEvent('kingshot:room-resync',{detail:{clockChanged}}));
     if(!plan&&!records.size){updateTimers();syncDesktopAlarms();return;}
     plan=null;records.clear();windows=[];fired.clear();$('rally-dirty').hidden=true;$('stop-rally').disabled=true;sessionInvalid=true;txt('session-notice',t('sleepReset'));$('session-notice').hidden=false;
     renderRallyTimeline();renderGuardRows();renderGuardTimeline();updateTimers();syncDesktopAlarms();

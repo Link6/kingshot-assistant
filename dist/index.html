@@ -13,15 +13,15 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Kingshot">
   <!-- Select the installation language before the browser fetches a manifest. -->
-  <script src="assets/i18n-cdf1a0e89720ee40.js"></script>
+  <script src="assets/i18n-f9feb149198806bf.js"></script>
   <link rel="stylesheet" href="assets/styles-99444024ff6af17a.css">
   <script src="assets/install-ff9ccd4e38b61f8b.js" defer></script>
-  <script src="assets/core-07fbf2a47ab824d0.js" defer></script>
+  <script src="assets/core-6e993bcb734cc532.js" defer></script>
   <script src="assets/battle-ui-8a5a1cbcdc19f167.js" defer></script>
   <script src="assets/supabase-ee3be8de192b97cb.js" defer></script>
   <script src="assets/roomconfig-f4b9c6854684fe8f.js" defer></script>
-  <script src="assets/app-56fd19e58be25350.js" defer></script>
-  <script src="assets/rooms-a90d78568b6e384e.js" defer></script>
+  <script src="assets/app-8477bd2e5593ec48.js" defer></script>
+  <script src="assets/rooms-56a27a49479c6f9a.js" defer></script>
 </head>
 <body>
   <aside class="sidebar">
@@ -59,7 +59,9 @@
         <p id="room-announcement" class="command-announcement" hidden></p>
         <div class="battle-personal-grid">
           <section id="room-order" class="hero-timer personal-order" aria-live="off"><div class="timer-top"><b data-i18n="myOrder">我的行动</b><span id="room-my-role" class="pill neutral"></span></div><div class="timer-center"><div id="room-order-title" class="timer-kicker"></div><div id="room-order-countdown" class="timer-value textual">—</div><p id="room-order-instruction" class="timer-instruction"></p></div><div class="timer-footer"><strong id="room-order-range"></strong></div></section>
-          <section class="panel personal-march"><h2 data-i18n="myMarch">我的行军时间</h2><p class="field-note" data-i18n="marchOnlyHint">只需填写本次到目标的实际行军时间，其他操作由指挥负责。</p><label><span data-i18n="roomMarch"></span><input id="room-march" inputmode="decimal"></label><button id="room-save-self" class="button secondary" data-i18n="confirmMarch">更新并确认行军时间</button><p id="room-march-status" class="field-note" role="status"></p></section>
+          <section class="panel personal-march"><h2 data-i18n="myMarch">我的行军时间</h2><p class="field-note" data-i18n="marchOnlyHint"></p><label><span data-i18n="roomMarch"></span><input id="room-march" inputmode="decimal"></label><button id="room-save-self" class="button secondary" data-i18n="confirmMarch"></button><p id="room-march-status" class="field-note" role="status"></p>
+            <section id="room-own-pet" class="pet-timer" aria-labelledby="room-pet-title"><h3 id="room-pet-title" data-i18n="roomPetTitle">我的宠物 · 预计计时</h3><p class="pet-help" data-i18n="roomPetHelp"></p><div class="pet-controls"><label><span data-i18n="roomPetElapsed">宠物已开启（分钟）</span><input id="room-pet-elapsed" type="number" min="0" max="120" step="any" inputmode="decimal" value="0"></label><button id="room-pet-save" type="button" class="button secondary" data-i18n="roomPetStart">从现在开始计时</button></div><div id="room-pet-error" class="form-error" role="alert" hidden></div><div id="room-pet-live" hidden><div class="pet-reading"><span data-i18n="petRemaining"></span><strong id="room-pet-countdown"></strong><button id="room-pet-clear" type="button" class="text-button subtle" data-i18n="petStop" hidden></button></div><p id="room-pet-end"></p><p id="room-pet-warning" class="pet-warning" role="status" hidden></p></div></section>
+          </section>
         </div>
         <section id="room-command" class="panel command-panel" hidden><h2 data-i18n="commandConsole">指挥台</h2><div class="battle-mode-buttons"><button class="button secondary" data-battle-mode="hold" data-i18n="battleHold">待命</button><button class="button secondary" data-battle-mode="attack" data-i18n="battleAttackMode">进攻集结</button><button class="button secondary" data-battle-mode="defend" data-i18n="battleDefend">防守补兵</button><button id="room-check-marches" class="button ghost" data-i18n="requestMarchCheck">要求重新核对行军</button></div><div class="command-fields"><label><span data-i18n="commandNote">全员指令</span><input id="room-command-note" maxlength="240" placeholder=""></label><label><span data-i18n="margin"></span><input id="room-command-margin" value="0.2" inputmode="decimal"></label><button id="room-command-save" class="button secondary" data-i18n="broadcastCommand">发布指令</button></div></section>
         <section id="room-attack" class="room-operation" hidden>
