@@ -12,6 +12,7 @@
   const canCommand=()=>['owner','commander'].includes(role());
   const checked=m=>!!m?.march&&m.marchUpdatedAt>=room.battle.marchCheckAt;
   const modeKey=mode=>mode==='attack'?'battleAttackMode':mode==='defend'?'battleDefend':'battleHold';
+  const allEnemies=()=>[...room.enemies,...(room.stoppedEnemies||[])];
   const petKey=()=>storageKey+':pet:'+room.me;
   function savePersonalPet(){try{if(personalPet)localStorage.setItem(petKey(),JSON.stringify(personalPet));else localStorage.removeItem(petKey());$('room-pet-error').hidden=true;}catch{$('room-pet-error').textContent=t('storageUnavailable');$('room-pet-error').hidden=false;}}
   function loadPersonalPet(){
@@ -65,8 +66,8 @@
     $('room-members').innerHTML=room.members.map(m=>`<div class="room-member"><div><b>${esc(m.name)}</b><small>${t(room.leaders.some(l=>l.userId===m.id)?'roomLeaderBadge':'roomJoinerBadge')} · ${m.march==null?'—':esc(m.march+' '+t('seconds'))}</small><small class="${checked(m)?'':'needs-check'}">${t(checked(m)?'marchChecked':'marchNeedsCheck')}</small></div>${role()==='owner'&&m.role!=='owner'?`<select data-room-role="${esc(m.id)}" aria-label="${esc(m.name+' '+t('roomRoleHint'))}"><option value="member" ${m.role==='member'?'selected':''}>${t('roomMember')}</option><option value="commander" ${m.role==='commander'?'selected':''}>${t('roomCommander')}</option></select>`:`<span class="pill neutral">${roleText(m.role)}</span>`}</div>`).join('');
     renderLeaders();
     const selected=$('room-enemy-select').value;
-    $('room-enemy-select').innerHTML=`<option value="">${t('roomNewEnemy')}</option>`+room.enemies.map(e=>`<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
-    if(room.enemies.some(e=>e.id===selected))$('room-enemy-select').value=selected;
+    $('room-enemy-select').innerHTML=`<option value="">${t('roomNewEnemy')}</option>`+allEnemies().map(e=>`<option value="${esc(e.id)}">${esc(e.name)}${e.active===false?' · '+t('enemyStopped'):''}</option>`).join('');
+    if(allEnemies().some(e=>e.id===selected))$('room-enemy-select').value=selected;
     renderBattle();renderStatus();
   }
   function planStale(){return !!room?.plan&&(room.plan.rows.length!==room.leaders.length||room.plan.rows.some(r=>!room.leaders.some(l=>l.id===r.id&&l.userId===r.userId&&l.prepare===r.prepareSeconds&&l.march===r.marchSeconds)));}
@@ -80,11 +81,23 @@
     $('room-plan-stale').hidden=!planStale();
     $('room-attack-gaps').innerHTML=UI.gaps(rows,room.battle.margin);
     $('room-gap-hint').textContent=t('gapMarginHint',{margin:room.battle.margin});
-    enemyRecords=room.enemies.map(e=>({...e,marchSeconds:e.march}));
+    enemyRecords=room.enemies.filter(e=>e.active!==false).map(e=>({...e,marchSeconds:e.march}));
     defenseWindows=me()?.march?K.guardWindows(enemyRecords,me().march,room.battle.margin):[];
     $('room-defense-windows').innerHTML=defenseWindows.length?defenseWindows.map(w=>`<div class="rally-gap ${w.usable?'has-gap':''}"><div><b>${esc(w.before.name)} → ${esc(w.after.name)}</b><small>${t('safeWindow')}: ${w.usable?esc(w.width+' '+t('seconds')):t('noSafeWindow')}</small></div><div>${w.usable?esc(K.formatUtc(w.start))+'<small>'+esc(K.formatUtc(w.end))+'</small>':t('noInsertionWindow')}</div></div>`).join(''):`<p class="result-placeholder">${t(me()?.march?'twoNeeded':'marchNeedsCheck')}</p>`;
-    $('room-defense-rows').innerHTML=enemyRecords.map(r=>`<article class="rally-order" data-enemy-id="${esc(r.id)}"><header><b>${esc(r.name)}</b>${canCommand()?`<button class="text-button subtle" data-enemy-delete>${t('delete')}</button>`:''}</header><p>${K.formatUtc(r.arrivalAt)}</p><div class="order-countdown"><span data-enemy-stage></span><strong data-enemy-time></strong></div>${canCommand()?['prepare','march'].map(field=>`<div class="enemy-adjust-group"><small>${t(field==='prepare'?'prepareAdjust':'marchAdjust')}</small><div class="time-nudges">${[-1,-0.1,0.1,1].map(d=>`<button data-enemy-field="${field}" data-delta="${d}">${d>0?'+':'−'}${Math.abs(d)}s</button>`).join('')}</div></div>`).join(''):''}</article>`).join('');
+    $('room-defense-rows').innerHTML=allEnemies().map(renderEnemyCard).join('');
     tick();
+  }
+  function renderEnemyCard(r){
+    const stopped=r.active===false,actions=canCommand()?`<div class="room-leader-actions"><button class="text-button" ${stopped?'data-enemy-rerecord':'data-enemy-stop'}>${t(stopped?'enemyRecordAgain':'enemyStop')}</button><button class="text-button subtle" data-enemy-delete>${t('delete')}</button></div>`:'';
+    const clock=stopped?`<p class="field-note">${t('enemyStopHint')}</p>`:`<p>${K.formatUtc(r.arrivalAt)}</p><div class="order-countdown"><span data-enemy-stage></span><strong data-enemy-time></strong></div>`;
+    const adjust=!stopped&&canCommand()?['prepare','march'].map(field=>`<div class="enemy-adjust-group"><small>${t(field==='prepare'?'prepareAdjust':'marchAdjust')}</small><div class="time-nudges">${[-1,-0.1,0.1,1].map(d=>`<button data-enemy-field="${field}" data-delta="${d}">${d>0?'+':'−'}${Math.abs(d)}s</button>`).join('')}</div></div>`).join(''):'';
+    return `<article class="rally-order ${stopped?'enemy-stopped':''}" data-enemy-id="${esc(r.id)}"><header><b>${esc(r.name)}</b>${stopped?`<span class="pill neutral">${t('enemyStopped')}</span>`:''}${actions}</header>${clock}${adjust}</article>`;
+  }
+  function editEnemy(enemy,restart=false){
+    $('room-enemy-select').value=enemy.id;$('room-enemy-name').value=enemy.name;
+    $('room-enemy-mode').value=restart?'gathering':enemy.mode;$('room-enemy-march').value=String(enemy.march);
+    $('room-enemy-prepare').value=String(restart&&!enemy.prepare?300:enemy.prepare);
+    $('room-enemy-editor').open=true;renderStatus();
   }
   function showOrder(title,value,instruction,range='',go=false){
     for(const [id,text] of [['room-order-title',title],['room-order-countdown',value],['room-order-instruction',instruction],['room-order-range',range]])if($(id).textContent!==text)$(id).textContent=text;
@@ -269,15 +282,15 @@
       }catch{error('roomInvalid');}
     });
     $('room-enemy-select').addEventListener('change',()=>{
-      const enemy=room.enemies.find(e=>e.id===$('room-enemy-select').value);
-      if(enemy){$('room-enemy-name').value=enemy.name;$('room-enemy-mode').value=enemy.mode;$('room-enemy-march').value=String(enemy.march);$('room-enemy-prepare').value=String(enemy.prepare);}
+      const enemy=allEnemies().find(e=>e.id===$('room-enemy-select').value);
+      if(enemy)editEnemy(enemy,enemy.active===false);
       else $('room-enemy-name').value='';
       renderStatus();
     });
     $('room-enemy-mode').addEventListener('change',renderStatus);
     $('room-enemy-form').addEventListener('submit',e=>{
       e.preventDefault();const at=Date.now()+offset;
-      try{const enemy=room.enemies.find(x=>x.id===$('room-enemy-select').value),mode=$('room-enemy-mode').value;
+      try{const enemy=allEnemies().find(x=>x.id===$('room-enemy-select').value),mode=$('room-enemy-mode').value;
         run('record',{id:enemy?.id||'',revision:enemy?.revision||0,name:$('room-enemy-name').value.trim(),mode,prepare:mode==='marching'?0:K.parseDuration($('room-enemy-prepare').value),march:K.parseDuration($('room-enemy-march').value,false),at});
       }catch{error('roomInvalid');}
     });
@@ -297,7 +310,9 @@
       run('rally_adjust',{...data,id:r.id,revision:r.revision,planId:room.plan.id});
     });
     $('room-defense-rows').addEventListener('click',e=>{
-      const b=e.target.closest('[data-enemy-delete],[data-enemy-field]');if(!b)return;const r=room.enemies.find(r=>r.id===b.closest('[data-enemy-id]').dataset.enemyId);
+      const b=e.target.closest('[data-enemy-delete],[data-enemy-field],[data-enemy-stop],[data-enemy-rerecord]');if(!b)return;const r=allEnemies().find(r=>r.id===b.closest('[data-enemy-id]').dataset.enemyId);
+      if(b.hasAttribute('data-enemy-stop')){run('stop_enemy',{id:r.id,revision:r.revision});return;}
+      if(b.hasAttribute('data-enemy-rerecord')){editEnemy(r,true);$('room-enemy-editor').scrollIntoView({block:'nearest'});$('room-enemy-prepare').focus({preventScroll:true});return;}
       if(b.hasAttribute('data-enemy-delete')){if(confirm(t('deleteConfirm')))run('delete',{id:r.id,revision:r.revision});}
       else run('adjust',{id:r.id,revision:r.revision,field:b.dataset.enemyField,delta:Number(b.dataset.delta)});
     });

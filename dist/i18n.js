@@ -1,6 +1,9 @@
 (function(root){
   "use strict";
   const catalogue = {
+  "enemyStop":["停止计时","Stop timer"],"enemyStopped":["已停止","Stopped"],
+  "enemyRecordAgain":["重新记录","Record again"],
+  "enemyStopHint":["本队已停止，不参与补兵窗口。敌方重新发起后，请重新读取并记录倒计时。","This attack is stopped and excluded from reinforcement windows. Read and record a fresh countdown when the enemy starts again."],
   "battleRoom":["房间作战","Battle room"],
   "roomEntryHint":["登录并进入房间后，将切换到独立作战界面，由房主或指挥统一下达指令。","Enter a room to open a separate battle interface controlled by the host and commanders."],
   "myOrder":["我的行动","My action"],

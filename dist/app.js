@@ -31,7 +31,7 @@
       if(saved&&typeof saved==='object'){
         for(const key of ['lead','own','margin'])if(typeof saved[key]==='string')state[key]=saved[key];
         if(typeof saved.sound==='boolean')state.sound=saved.sound;
-        for(const kind of ['rally','guard'])if(Array.isArray(saved[kind]))state[kind]=saved[kind].slice(0,30).filter(r=>r&&typeof r==='object').map(r=>({...fresh(kind),name:String(r.name||'').slice(0,40),prepare:String(r.prepare??'5:00'),march:String(r.march??''),pet:K.restorePetEstimate(r.pet),petElapsed:String(r.petElapsed??'0'),...(kind==='guard'?{mode:r.mode==='marching'?'marching':'gathering'}:{})}));
+        for(const kind of ['rally','guard'])if(Array.isArray(saved[kind]))state[kind]=saved[kind].slice(0,30).filter(r=>r&&typeof r==='object').map(r=>({...fresh(kind),name:String(r.name||'').slice(0,40),prepare:String(r.prepare??'5:00'),march:String(r.march??''),pet:K.restorePetEstimate(r.pet),petElapsed:String(r.petElapsed??'0'),...(kind==='guard'?{mode:r.mode==='marching'?'marching':'gathering',stopped:r.stopped===true}:{})}));
         try{K.parseDuration(state.own,false);validOwn=state.own;}catch{state.own=validOwn;}
         try{K.parseDuration(state.margin);validMargin=state.margin;}catch{state.margin=validMargin;}
       }
@@ -86,6 +86,7 @@
     state.guard.forEach(r=>{
       const controls=field=>[-1,-0.1,0.1,1].map(delta=>`<button type="button" data-adjust="${field}" data-delta="${delta}" aria-label="${esc(t(field==='prepare'?'adjustPrepare':'adjustMarch',{delta:(delta>0?'+':'')+delta}))}">${delta>0?'+':'−'}${Math.abs(delta)}${t('seconds')}</button>`).join('');
       $(`record-caption-${r.id}`).insertAdjacentHTML('afterend',`<section class="enemy-live" id="enemy-live-${r.id}" aria-label="${t('liveTiming')}" hidden><div class="enemy-live-heading"><b>${t('liveTiming')}</b><span id="enemy-stage-${r.id}"></span></div><div class="enemy-clock" id="enemy-prepare-group-${r.id}"><div><span>${t('prepareRemaining')}</span><strong id="enemy-prepare-${r.id}"></strong></div><div class="time-nudges" role="group" aria-label="${t('prepareAdjust')}">${controls('prepare')}</div></div><div class="enemy-clock"><div><span id="enemy-march-label-${r.id}"></span><strong id="enemy-march-${r.id}"></strong></div><div class="time-nudges" role="group" aria-label="${t('marchAdjust')}">${controls('march')}</div></div><p>${t('adjustHelp')}</p><p id="enemy-adjust-note-${r.id}" role="status"></p></section>`);
+      $(`enemy-live-${r.id}`).querySelector('.enemy-live-heading').insertAdjacentHTML('beforeend',`<button type="button" class="text-button" data-stop-enemy>${t('enemyStop')}</button>`);
       $(`enemy-live-${r.id}`).insertAdjacentHTML('afterend',renderPetControls(r,'guard'));
       updateGuardRow(r);
     });
@@ -95,10 +96,10 @@
   }
   function updateGuardRow(r){
     const rec=records.get(r.id),edited=rec&&rec.draft!==battleDraft(r),status=$(`record-status-${r.id}`);
-    status.className=`record-status ${rec?edited?'dirty':'recorded':''}`;status.textContent=t(rec?edited?'edited':'recorded':'unrecorded');
+    status.className=`record-status ${rec?edited?'dirty':'recorded':''}`;status.textContent=t(rec?edited?'edited':'recorded':r.stopped?'enemyStopped':'unrecorded');
     let reading;try{reading=duration(K.parseDuration(r.mode==='marching'?r.march:r.prepare));}catch{reading=t('reading');}
     txt(`record-label-${r.id}`,t('recordLabel',{action:t(rec?'rerecord':'record'),reading}));
-    txt(`record-caption-${r.id}`,rec?t('recordDetails',{recorded:clock(rec.recordedAt,true),arrival:clock(rec.arrivalAt,true),dirty:edited?t('usingPrevious'):''}):t(r.mode==='marching'?'marchHelp':'recordHelp'));
+    txt(`record-caption-${r.id}`,rec?t('recordDetails',{recorded:clock(rec.recordedAt,true),arrival:clock(rec.arrivalAt,true),dirty:edited?t('usingPrevious'):''}):t(r.stopped?'enemyStopHint':r.mode==='marching'?'marchHelp':'recordHelp'));
     $(`enemy-live-${r.id}`).hidden=!rec;
     txt(`enemy-adjust-note-${r.id}`,rec?.adjusted?t('adjustApplied',{time:clock(rec.arrivalAt,true)}):'');
     if(rec)updateEnemyClock(rec,now());
@@ -237,9 +238,10 @@
       if(e.target.closest('[data-delete]')){if((records.has(id)||r.pet||(kind==='rally'&&plan))&&!confirm(t('deleteConfirm')))return;state[kind]=state[kind].filter(r=>r.id!==id);errors.delete(`guard-error-${id}`);errors.delete(`pet-error-${id}`);if(kind==='rally'){dirtyPlan();renderRallyRows();}else{records.delete(id);renderGuardRows();computeGuard();}save();syncDesktopAlarms();return;}
       if(e.target.closest('[data-pet-start]')){try{r.pet=K.makePetEstimate(r.petElapsed,now());showError(`pet-error-${id}`);save();if(kind==='rally')renderRallyRows();else renderGuardRows();syncDesktopAlarms();toast('petStarted');}catch(err){showError(`pet-error-${id}`,err);}return;}
       if(e.target.closest('[data-pet-stop]')){r.pet=null;r.petElapsed='0';showError(`pet-error-${id}`);save();if(kind==='rally')renderRallyRows();else renderGuardRows();syncDesktopAlarms();return;}
+      if(e.target.closest('[data-stop-enemy]')){records.delete(id);r.stopped=true;showError(`guard-error-${id}`);updateGuardRow(r);computeGuard();save();return;}
       const mode=e.target.closest('[data-mode]');if(mode){r.mode=mode.dataset.mode;renderGuardRows();save();return;}
       const adjust=e.target.closest('[data-adjust]');if(adjust){const rec=records.get(id);if(!rec)return;try{const updated=K.adjustEnemy(rec,adjust.dataset.adjust,Number(adjust.dataset.delta),now());updated.adjusted=true;records.set(id,updated);showError(`guard-error-${id}`);updateGuardRow(r);computeGuard();}catch(err){showError(`guard-error-${id}`,err,'oldRecord');}return;}
-      if(e.target.closest('[data-record]')){const recordedAt=now();try{const snapshot=K.recordEnemy(r,recordedAt);snapshot.index=state.guard.indexOf(r);snapshot.draft=battleDraft(r);records.set(id,snapshot);showError(`guard-error-${id}`);updateGuardRow(r);clearNotice();computeGuard();toast('recordToast',{name:rowName(snapshot,'guard'),time:clock(snapshot.arrivalAt,true)});}catch(err){showError(`guard-error-${id}`,err,records.has(id)?'oldRecord':null);}}
+      if(e.target.closest('[data-record]')){const recordedAt=now();try{const snapshot=K.recordEnemy(r,recordedAt);snapshot.index=state.guard.indexOf(r);snapshot.draft=battleDraft(r);records.set(id,snapshot);r.stopped=false;save();showError(`guard-error-${id}`);updateGuardRow(r);clearNotice();computeGuard();toast('recordToast',{name:rowName(snapshot,'guard'),time:clock(snapshot.arrivalAt,true)});}catch(err){showError(`guard-error-${id}`,err,records.has(id)?'oldRecord':null);}}
     });
   }
   for(const kind of ['rally','guard'])$(kind==='rally'?'rally-pet-update-march':'pet-update-march').addEventListener('click',async()=>{const r=state[kind].find(r=>K.petTiming(r.pet,now())?.needsReview);if(!r)return;state.focus=false;document.body.classList.remove('focus-mode');syncControls();setTab(kind);if(desktop)try{await desktop.setCompact(false);}catch{}const panel=$(`pet-panel-${r.id}`);panel.closest('[data-id]').querySelector('[data-field="march"]').focus();panel.closest('[data-id]').scrollIntoView({block:'center',behavior:'smooth'});});

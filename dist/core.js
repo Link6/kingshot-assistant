@@ -93,7 +93,7 @@
   function guardWindows(records, ownMarch, margin) {
     const own = parseDuration(ownMarch, false) * 1000;
     const pad = parseDuration(margin) * 1000;
-    const sorted = [...records].sort((a, b) => a.arrivalAt - b.arrivalAt);
+    const sorted = records.filter(r=>r.active!==false).sort((a, b) => a.arrivalAt - b.arrivalAt);
     return sorted.slice(0, -1).map((a, i) => {
       const b = sorted[i + 1];
       const arrivalStart = a.arrivalAt + pad;
@@ -113,7 +113,7 @@
       return {left:(left - now) / span * 100, width:(right - left) / span * 100};
     };
     return {
-      attacks: [...records].sort((a, b) => a.arrivalAt - b.arrivalAt).map(record => ({record,
+      attacks: records.filter(r=>r.active!==false).sort((a, b) => a.arrivalAt - b.arrivalAt).map(record => ({record,
         visible:record.arrivalAt >= now && record.arrivalAt <= limit,
         left:(record.arrivalAt - now) / span * 100})),
       windows: windows.map(window => ({window,
