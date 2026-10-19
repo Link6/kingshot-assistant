@@ -27,9 +27,9 @@ function worker({offline=false,status=200,staleHtml=false}={}){
 test('HTML and precache reference the same content-addressed scripts and stylesheet',()=>{
   const {assets}=prepareAssets({check:true});
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
-  assert.equal(assets.length,8);
+  assert.equal(assets.length,9);
   for(const asset of assets){
-    const match=asset.match(/^\.\/assets\/(\w+)-([a-f0-9]{16})\.(js|css)$/);assert.ok(match);
+    const match=asset.match(/^\.\/assets\/([\w-]+)-([a-f0-9]{16})\.(js|css)$/);assert.ok(match);
     const [,base,hash,ext]=match;
     const text=fs.readFileSync(path.join(root,base+'.'+ext),'utf8').replace(/\r\n/g,'\n');
     assert.equal(hash,createHash('sha256').update(text).digest('hex').slice(0,16));

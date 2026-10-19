@@ -1,42 +1,100 @@
 (function(){
   'use strict';
   const $=id=>document.getElementById(id),I=window.KingshotI18n,K=window.KingshotTiming,B=window.KingshotRoomBridge;
-  const t=(k,p)=>I.t(k,p),cfg=window.KingshotRoomConfig,esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const UI=window.KingshotBattleUI,t=(k,p)=>I.t(k,p),cfg=window.KingshotRoomConfig,esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const scope=new URL('.',location.href).pathname,storageKey=`kingshot:${scope}:room`,providerKey=storageKey+':discord';
-  let client,session=null,allowed=false,room=null,channel=null,busy=false,connected=false,realtimeReady=false,offset=0,bestRtt=Infinity,uncertainty=0,reading=false,refreshTimer,verifiedAt=0,leaderEdit=null;
+  let client,session=null,allowed=false,room=null,channel=null,busy=false,connected=false,realtimeReady=false,offset=0,bestRtt=Infinity,uncertainty=0,reading=false,refreshTimer,verifiedAt=0,leaderEdit=null,defenseWindows=[],enemyRecords=[],roomEpoch=0;
   const role=()=>room?.members.find(m=>m.id===room.me)?.role;
   const roleText=r=>t(r==='owner'?'roomOwner':r==='commander'?'roomCommander':'roomMember');
   function error(key){$('room-error').hidden=!key;$('room-error').textContent=key?t(key):'';}
-  function online(flag){connected=flag&&realtimeReady;B.setOnline(connected);renderStatus();}
+  function online(flag){connected=!!flag&&realtimeReady;renderStatus();tick();}
+  const me=()=>room?.members.find(m=>m.id===room.me);
+  const canCommand=()=>['owner','commander'].includes(role());
+  const checked=m=>!!m?.march&&m.marchUpdatedAt>=room.battle.marchCheckAt;
+  const modeKey=mode=>mode==='attack'?'battleAttackMode':mode==='defend'?'battleDefend':'battleHold';
   function renderStatus(){
-    $('room-summary').textContent=room?room.code+' · '+t(connected?'roomOnlineShort':'roomOfflineShort'):t(allowed?'roomVerified':'roomSolo');
-    $('room-panel').classList.toggle('sync-offline',!!room&&!connected);
+    $('room-summary').textContent=t(allowed?'roomVerified':'roomSolo');
     $('room-account').textContent=t(allowed?'roomVerified':session?'roomVerify':'roomNeedLogin');
     $('room-login').hidden=!!session&&allowed;$('room-logout').hidden=!session;
-    $('room-entry').hidden=!allowed||!!room;$('room-live').hidden=!room;
-    for(const id of ['room-login','room-create','room-join','room-save-self'])$(id).disabled=busy||(['room-create','room-join','room-save-self'].includes(id)&&!allowed);
+    $('room-entry').hidden=!allowed||!!room;
+    for(const id of ['room-login','room-create','room-join'])$(id).disabled=busy||id!=='room-login'&&!allowed;
     if(!room)return;
+    $('room-reauth').hidden=allowed;$('room-reauth').disabled=busy;
     $('room-code').textContent=room.code;$('room-leave').textContent=t(role()==='owner'?'roomClose':'roomLeave');
     $('room-sync').textContent=connected?t('roomConnected',{role:roleText(role()),ms:Math.ceil(uncertainty),expiry:new Date(room.expiresAt).toLocaleTimeString(I.language)})+(uncertainty>500?' · '+t('roomClockWarning'):''):t('roomOffline');
     $('room-sync').classList.toggle('disconnected',!connected);
-    $('room-enemy-form').hidden=role()==='member';
-    $('room-leader-form').hidden=role()==='member';
-    $('room-leader-form').querySelectorAll('input,select,button').forEach(el=>el.disabled=!allowed||!connected||busy);
-    $('room-leaders').querySelectorAll('button').forEach(el=>el.disabled=!allowed||!connected||busy);
+    $('room-battle-mode').textContent=t(modeKey(room.battle.mode));
+    $('room-my-role').textContent=t(room.leaders.some(l=>l.userId===room.me)?'roomLeaderBadge':'roomJoinerBadge');
+    $('room-march-status').textContent=t(checked(me())?'marchChecked':'marchNeedsCheck');
+    $('room-march-status').classList.toggle('needs-check',!checked(me()));
+    $('room-announcement').hidden=!room.battle.note;$('room-announcement').textContent=room.battle.note;
+    $('room-command').hidden=!canCommand();
+    $('room-attack').hidden=room.battle.mode==='defend';$('room-defense').hidden=room.battle.mode!=='defend';
+    for(const id of ['room-publish-form','room-leader-manager','room-leader-form','room-enemy-editor','room-enemy-form'])$(id).hidden=!canCommand();
+    for(const id of ['room-command','room-publish-form','room-leader-form','room-enemy-form'])$(id).querySelectorAll('input,select,button').forEach(el=>el.disabled=!allowed||!connected||busy||!canCommand());
+    for(const id of ['room-orders','room-defense-rows','room-leaders','room-members'])$(id).querySelectorAll('input,select,button').forEach(el=>el.disabled=busy||!allowed||!connected||!canCommand());
     if($('room-leader-source').value){$('room-leader-name').disabled=true;$('room-leader-march').disabled=true;}
-    $('room-enemy-form').querySelectorAll('input,select,button').forEach(el=>el.disabled=!allowed||!connected||busy);
-    $('room-enemy-prepare').disabled=!allowed||!connected||busy||$('room-enemy-mode').value==='marching';
+    $('room-enemy-prepare').disabled=!allowed||!connected||busy||!canCommand()||$('room-enemy-mode').value==='marching';
     $('room-save-self').disabled=busy||!allowed||!connected;
-    $('room-members').querySelectorAll('select').forEach(el=>el.disabled=busy||!allowed||!connected);
+    document.querySelectorAll('[data-battle-mode]').forEach(el=>el.classList.toggle('selected',el.dataset.battleMode===room.battle.mode));
   }
   function renderMembers(){
     if(!room)return;
-    $('room-members').innerHTML=room.members.map(m=>`<div class="room-member"><div><b>${esc(m.name)}</b><small>${t(room.leaders.some(l=>l.userId===m.id)?'roomLeaderBadge':'roomJoinerBadge')} · ${m.march==null?'—':esc(m.march+' '+t('seconds'))}</small></div>${role()==='owner'&&m.role!=='owner'?`<select data-room-role="${esc(m.id)}" aria-label="${esc(m.name+' '+t('roomRoleHint'))}"><option value="member" ${m.role==='member'?'selected':''}>${t('roomMember')}</option><option value="commander" ${m.role==='commander'?'selected':''}>${t('roomCommander')}</option></select>`:`<span class="pill neutral">${roleText(m.role)}</span>`}</div>`).join('');
+    $('room-members').innerHTML=room.members.map(m=>`<div class="room-member"><div><b>${esc(m.name)}</b><small>${t(room.leaders.some(l=>l.userId===m.id)?'roomLeaderBadge':'roomJoinerBadge')} · ${m.march==null?'—':esc(m.march+' '+t('seconds'))}</small><small class="${checked(m)?'':'needs-check'}">${t(checked(m)?'marchChecked':'marchNeedsCheck')}</small></div>${role()==='owner'&&m.role!=='owner'?`<select data-room-role="${esc(m.id)}" aria-label="${esc(m.name+' '+t('roomRoleHint'))}"><option value="member" ${m.role==='member'?'selected':''}>${t('roomMember')}</option><option value="commander" ${m.role==='commander'?'selected':''}>${t('roomCommander')}</option></select>`:`<span class="pill neutral">${roleText(m.role)}</span>`}</div>`).join('');
     renderLeaders();
     const selected=$('room-enemy-select').value;
     $('room-enemy-select').innerHTML=`<option value="">${t('roomNewEnemy')}</option>`+room.enemies.map(e=>`<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
     if(room.enemies.some(e=>e.id===selected))$('room-enemy-select').value=selected;
-    renderStatus();
+    renderBattle();renderStatus();
+  }
+  function planStale(){return !!room?.plan&&(room.plan.rows.length!==room.leaders.length||room.plan.rows.some(r=>!room.leaders.some(l=>l.id===r.id&&l.userId===r.userId&&l.prepare===r.prepareSeconds&&l.march===r.marchSeconds)));}
+  function renderBattle(){
+    const rows=room.plan?.rows||[],opened=[...$('room-orders').querySelectorAll('details[open]')].map(el=>el.closest('[data-order-id]').dataset.orderId);
+    const focused=document.activeElement?.matches('[data-rally-at]')?{id:document.activeElement.closest('[data-order-id]').dataset.orderId,value:document.activeElement.value}:null;
+    $('room-orders').innerHTML=rows.length?UI.orders(rows,canCommand()):`<div class="result-placeholder">${t('waitPublishedPlan')}</div>`;
+    for(const id of opened)$('room-orders').querySelector(`[data-order-id="${CSS.escape(id)}"] details`)?.setAttribute('open','');
+    if(focused){const input=$('room-orders').querySelector(`[data-order-id="${CSS.escape(focused.id)}"] [data-rally-at]`);if(input){input.value=focused.value;input.focus({preventScroll:true});}}
+    $('room-plan-target').textContent=room.plan?t('sharedArrivalTarget',{time:K.formatUtc(room.plan.target)}):'';
+    $('room-plan-stale').hidden=!planStale();
+    $('room-attack-gaps').innerHTML=UI.gaps(rows,room.battle.margin);
+    $('room-gap-hint').textContent=t('gapMarginHint',{margin:room.battle.margin});
+    enemyRecords=room.enemies.map(e=>({...e,marchSeconds:e.march}));
+    defenseWindows=me()?.march?K.guardWindows(enemyRecords,me().march,room.battle.margin):[];
+    $('room-defense-windows').innerHTML=defenseWindows.length?defenseWindows.map(w=>`<div class="rally-gap ${w.usable?'has-gap':''}"><div><b>${esc(w.before.name)} → ${esc(w.after.name)}</b><small>${t('safeWindow')}: ${w.usable?esc(w.width+' '+t('seconds')):t('noSafeWindow')}</small></div><div>${w.usable?esc(K.formatUtc(w.start))+'<small>'+esc(K.formatUtc(w.end))+'</small>':t('noInsertionWindow')}</div></div>`).join(''):`<p class="result-placeholder">${t(me()?.march?'twoNeeded':'marchNeedsCheck')}</p>`;
+    $('room-defense-rows').innerHTML=enemyRecords.map(r=>`<article class="rally-order" data-enemy-id="${esc(r.id)}"><header><b>${esc(r.name)}</b>${canCommand()?`<button class="text-button subtle" data-enemy-delete>${t('delete')}</button>`:''}</header><p>${K.formatUtc(r.arrivalAt)}</p><div class="order-countdown"><span data-enemy-stage></span><strong data-enemy-time></strong></div>${canCommand()?['prepare','march'].map(field=>`<div class="enemy-adjust-group"><small>${t(field==='prepare'?'prepareAdjust':'marchAdjust')}</small><div class="time-nudges">${[-1,-0.1,0.1,1].map(d=>`<button data-enemy-field="${field}" data-delta="${d}">${d>0?'+':'−'}${Math.abs(d)}s</button>`).join('')}</div></div>`).join(''):''}</article>`).join('');
+    tick();
+  }
+  function showOrder(title,value,instruction,range='',go=false){
+    for(const [id,text] of [['room-order-title',title],['room-order-countdown',value],['room-order-instruction',instruction],['room-order-range',range]])if($(id).textContent!==text)$(id).textContent=text;
+    $('room-order-countdown').classList.toggle('textual',/[^\d:.-]/.test(value));$('room-order').classList.toggle('go',go);
+  }
+  function tick(){
+    if(!room||document.hidden)return;
+    const time=Date.now()+offset,rows=room.plan?.rows||[];$('room-order').classList.remove('narrow-window');
+    UI.tick($('room-orders'),rows,time);
+    for(const r of enemyRecords){const card=$('room-defense-rows').querySelector(`[data-enemy-id="${CSS.escape(r.id)}"]`);if(!card)continue;const live=K.enemyCountdown(r,time);card.querySelector('[data-enemy-stage]').textContent=t(live.stage==='arrived'?'attackPassed':live.stage);card.querySelector('[data-enemy-time]').textContent=UI.countdown((r.arrivalAt-time)/1000);card.querySelectorAll('[data-enemy-field="prepare"]').forEach(b=>b.disabled=!connected||busy||live.stage!=='gathering');}
+    if(!connected){showOrder(t('roomOfflineShort'),'—',t('roomOffline'));return;}
+    if(room.battle.mode==='hold'){showOrder(t('battleHold'),'—',t('waitCommander'));return;}
+    if(!checked(me())){showOrder(t('checkMarchFirst'),'—',t('marchNeedsCheck'));return;}
+    if(room.battle.mode==='defend'){
+      const w=K.nextWindow(defenseWindows,time);
+      if(!w){showOrder(t(enemyRecords.length<2?'waitingEnemy':'noWindow'),'—',t(enemyRecords.length<2?'twoNeeded':defenseWindows.some(w=>w.usable)?'missedHint':'gapShortHint'));return;}
+      const go=time>=w.midpoint,remaining=(w.midpoint-time)/1000;
+      $('room-order').classList.toggle('narrow-window',w.narrow);
+      showOrder(t(go?'sendNow':'waitingSend'),go?t('sendNow'):UI.countdown(remaining),t('between',{before:w.before.name,after:w.after.name})+(w.narrow?' · '+t('hospitalWarning'):''),K.formatUtc(w.start)+' – '+K.formatUtc(w.end).slice(11),go);
+      B.cue('defense:'+w.id+':'+w.midpoint,w.midpoint,time,w.end);return;
+    }
+    if(!rows.length||planStale()){showOrder(t('waitPublishedPlan'),'—',t(planStale()?'sharedPlanStale':'waitCommander'));return;}
+    const own=rows.find(r=>r.userId===room.me);
+    if(own){
+      const timing=K.rallyTiming(own,time),key=timing.stage==='waiting'?'launchCountdown':timing.stage==='launch'?'launchNow':timing.stage==='gathering'?'prepareRemaining':timing.stage==='marching'?'marchRemaining':'arrived';
+      showOrder(t(key),timing.stage==='launch'?t('launch'):timing.stage==='arrived'?'—':UI.countdown(timing.remaining),t('leaderActionHint'),K.formatUtc(own.launchAt),timing.stage==='launch');
+      if(!own.confirmed)B.cue('launch:'+room.plan.id+':'+own.id+':'+own.launchAt,own.launchAt,time,own.launchAt+1200);
+    }else{
+      const gathering=rows.filter(r=>time>=r.launchAt&&time<r.launchAt+r.prepareSeconds*1000),next=rows.find(r=>r.launchAt>time);
+      if(gathering.length)showOrder(t('joinRallyNow'),UI.countdown((Math.min(...gathering.map(r=>r.launchAt+r.prepareSeconds*1000))-time)/1000),t('joinRallyHint',{names:gathering.map(r=>r.name).join(' / ')}));
+      else showOrder(t(next?'prepareToJoin':'battleHold'),next?UI.countdown((next.launchAt-time)/1000):'—',t('followCommander'));
+    }
   }
   function leaderSource(){
     const member=room?.members.find(m=>m.id===$('room-leader-source').value);
@@ -63,7 +121,7 @@
     leaderSource();
   }
   function saveCode(code){try{if(code)localStorage.setItem(storageKey,code);else localStorage.removeItem(storageKey);}catch{}}
-  async function clearRoom(remember=false){if(channel){await client.removeChannel(channel);channel=null;}room=null;leaderEdit=null;connected=false;realtimeReady=false;if(!remember)saveCode('');B.clear();renderStatus();}
+  async function clearRoom(remember=false){roomEpoch++;if(channel){await client.removeChannel(channel);channel=null;}room=null;leaderEdit=null;connected=false;realtimeReady=false;reading=false;if(!remember)saveCode('');B.clear();renderStatus();}
   function trackClock(snapshot,start,elapsed){
     if(!snapshot?.serverNow)return;
     if(elapsed<bestRtt||Math.abs(snapshot.serverNow-(start+elapsed/2)-offset)>3000){bestRtt=elapsed;offset=snapshot.serverNow-(start+elapsed/2);uncertainty=elapsed/2;}
@@ -76,14 +134,18 @@
   function apply(snapshot){
     if(!snapshot?.roomId)return;
     if(room&&room.roomId===snapshot.roomId&&snapshot.revision<room.revision)return;
-    const first=!room;room=snapshot;room.leaders=room.leaders||[];
+    const first=!room,previous=room,changed=first||snapshot.revision!==room.revision;room=snapshot;room.leaders=room.leaders||[];room.battle=room.battle||{mode:'hold',note:'',margin:0.2,marchCheckAt:Infinity};
     if(first){leaderEdit=null;$('room-leader-form').reset();const me=room.members.find(m=>m.id===room.me);$('room-march').value=me.march==null?'':String(me.march);}
-    B.apply(room,offset,realtimeReady);saveCode(room.code);online(true);renderMembers();
+    if(first||previous.battle.note!==room.battle.note)$('room-command-note').value=room.battle.note;
+    if(first||previous.battle.margin!==room.battle.margin)$('room-command-margin').value=String(room.battle.margin);
+    B.setActive(true);saveCode(room.code);if(changed)renderMembers();online(true);
   }
   async function handleError(err){
     const msg=String(err?.message||err);
     if(msg.includes('KS_VERIFY')||msg.includes('KS_LOGIN')){allowed=false;online(false);error('roomReauth');}
     else if(/KS_(FULL|MEMBERS|ENEMIES|LEADERS|QUOTA|RATE)/.test(msg))error('roomQuota');
+    else if(msg.includes('KS_MARCH_CHECK'))error('leadersNeedMarchCheck');
+    else if(msg.includes('KS_NO_LEADERS'))error('noLeaders');
     else if(msg.includes('KS_LEADER'))error('roomLeaderDuplicate');
     else if(msg.includes('KS_OWNED'))error('roomOwned');
     else if(/KS_(ROLE|MEMBER)/.test(msg))error('roomPermission');
@@ -95,8 +157,8 @@
   }
   async function refresh(){
     if(!room||!allowed||reading)return;
-    reading=true;
-    try{apply(await rpc('read',room.code));}catch(err){await handleError(err);}finally{reading=false;}
+    reading=true;const epoch=roomEpoch;
+    try{const result=await rpc('read',room.code);if(epoch===roomEpoch)apply(result);}catch(err){if(epoch===roomEpoch)await handleError(err);}finally{reading=false;}
   }
   async function subscribe(){
     realtimeReady=false;if(channel)await client.removeChannel(channel);
@@ -116,13 +178,14 @@
     allowed=true;verifiedAt=Date.now();error('');await rpc('access');renderStatus();return true;
   }
   async function run(action,data={},code=room?.code){
-    if(busy||!allowed)return;
-    busy=true;error('');renderStatus();
+    if(busy||!allowed||room&&!connected&&!['read','leave','close'].includes(action))return;
+    busy=true;error('');renderStatus();const epoch=roomEpoch;
     try{
       const result=await rpc(action,code,data);
+      if(epoch!==roomEpoch)return;
       if(result.left)await clearRoom();
       else{const first=!room;const recorded=action==='record'?result.enemies.find(e=>data.id?e.id===data.id:e.name===data.name&&Math.abs(e.recordedAt-data.at)<1):null;apply(result);if(action==='leader')resetLeader();if(recorded)$('room-enemy-select').value=recorded.id;if(first)await subscribe();}
-    }catch(err){await handleError(err);if(action==='leader'&&String(err?.message).includes('KS_CONFLICT'))editLeader(data.id);}finally{busy=false;renderStatus();}
+    }catch(err){if(epoch!==roomEpoch)return;await handleError(err);if(action==='leader'&&String(err?.message).includes('KS_CONFLICT'))editLeader(data.id);}finally{busy=false;renderStatus();}
   }
   async function authChanged(next){
     session=next;allowed=false;
@@ -162,6 +225,7 @@
       }catch(err){await handleError(err);}
     });
     $('room-logout').addEventListener('click',async()=>{try{sessionStorage.removeItem(providerKey);await client.auth.signOut();}catch(err){await handleError(err);}});
+    $('room-reauth').addEventListener('click',()=>$('room-login').click());
     $('room-create').addEventListener('click',()=>run('create',{name:$('room-name').value.trim()}));
     $('room-join').addEventListener('click',()=>run('join',{name:$('room-name').value.trim()},$('room-code-input').value.trim().toUpperCase()));
     $('room-save-self').addEventListener('click',()=>{try{run('member',{march:K.parseDuration($('room-march').value,false)});}catch{error('roomInvalid');}});
@@ -192,10 +256,27 @@
         run('record',{id:enemy?.id||'',revision:enemy?.revision||0,name:$('room-enemy-name').value.trim(),mode,prepare:mode==='marching'?0:K.parseDuration($('room-enemy-prepare').value),march:K.parseDuration($('room-enemy-march').value,false),at});
       }catch{error('roomInvalid');}
     });
-    $('room-leave').addEventListener('click',()=>{if(role()==='owner'&&!confirm(t('roomCloseConfirm')))return;run(role()==='owner'?'close':'leave');});
-    $('room-copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(room.code);$('room-copy').textContent=t('roomCopied');}catch{$('room-code-input').value=room.code;$('room-code-input').select();}});
-    $('language-select').addEventListener('change',()=>{renderMembers();renderStatus();});
-    B.setAction((action,data)=>run(action,data));
+    $('room-leave').addEventListener('click',()=>{if(!connected){clearRoom();return;}if(role()==='owner'&&!confirm(t('roomCloseConfirm')))return;run(role()==='owner'?'close':'leave');});
+    $('room-copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(room.code);$('room-copy').textContent=t('roomCopied');}catch{const selection=getSelection(),range=document.createRange();range.selectNodeContents($('room-code'));selection.removeAllRanges();selection.addRange(range);}});
+    $('language-select').addEventListener('change',()=>{renderMembers();renderStatus();tick();});
+    const command=(mode=room.battle.mode,check=false)=>{
+      try{run('command',{mode,check,note:$('room-command-note').value,margin:K.parseDuration($('room-command-margin').value),revision:room.battle.revision});}catch{error('roomInvalid');}
+    };
+    document.querySelectorAll('[data-battle-mode]').forEach(b=>b.addEventListener('click',()=>command(b.dataset.battleMode)));
+    $('room-command-save').addEventListener('click',()=>command());$('room-check-marches').addEventListener('click',()=>command(room.battle.mode,true));
+    $('room-publish-form').addEventListener('submit',e=>{e.preventDefault();try{const value=$('room-plan-target-input').value;run('publish',{revision:room.battle.revision,lead:K.parseDuration($('room-plan-lead').value,false),target:value?new Date(value).getTime():null});}catch{error('roomInvalid');}});
+    $('room-orders').addEventListener('click',e=>{
+      const b=e.target.closest('[data-rally-delta],[data-rally-now],[data-rally-set]');if(!b)return;const card=b.closest('[data-order-id]'),r=room.plan.rows.find(r=>r.id===card.dataset.orderId);
+      const data=b.hasAttribute('data-rally-delta')?{delta:Number(b.dataset.rallyDelta)}:{at:b.hasAttribute('data-rally-now')?Date.now()+offset:new Date(card.querySelector('[data-rally-at]').value).getTime()};
+      if(data.at!==undefined&&!Number.isFinite(data.at)){error('roomInvalid');return;}
+      run('rally_adjust',{...data,id:r.id,revision:r.revision,planId:room.plan.id});
+    });
+    $('room-defense-rows').addEventListener('click',e=>{
+      const b=e.target.closest('[data-enemy-delete],[data-enemy-field]');if(!b)return;const r=room.enemies.find(r=>r.id===b.closest('[data-enemy-id]').dataset.enemyId);
+      if(b.hasAttribute('data-enemy-delete')){if(confirm(t('deleteConfirm')))run('delete',{id:r.id,revision:r.revision});}
+      else run('adjust',{id:r.id,revision:r.revision,field:b.dataset.enemyField,delta:Number(b.dataset.delta)});
+    });
+    setInterval(tick,100);
     setInterval(async()=>{
       if(document.hidden||!session)return;
       try{if(Date.now()-verifiedAt>=240000){if(!await verify())return;}if(room)await refresh();}catch(err){await handleError(err);}

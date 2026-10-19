@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {createHash}=require('node:crypto');
 const root=path.join(__dirname,'../dist');
-const sources=['i18n.js','install.js','core.js','app.js','styles.css','supabase.js','roomconfig.js','rooms.js'];
+const sources=['i18n.js','install.js','core.js','battle-ui.js','app.js','styles.css','supabase.js','roomconfig.js','rooms.js'];
 const read=file=>fs.readFileSync(path.join(root,file),'utf8').replace(/\r\n/g,'\n');
 const hash=text=>createHash('sha256').update(text).digest('hex').slice(0,16);
 

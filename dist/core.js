@@ -45,6 +45,33 @@
     const march = parseDuration(row.march, false);
     return {id: row.id, name: row.name.trim(), mode:row.mode, recordedAt: now, departAt:now + prepare * 1000, marchSeconds:march, arrivalAt: now + (prepare + march) * 1000};
   }
+  function adjustRallyPlan(plan, id, change) {
+    if (!plan?.rows.some(r => r.id === id)) throw new TimingError('noLeaders');
+    const rows = plan.rows.map(r => {
+      if (r.id !== id) return {...r};
+      if (change.at === undefined && ![-1,-0.1,0.1,1].includes(change.delta)) throw new TimingError('invalidTime');
+      const launchAt = change.at === undefined ? Math.round(r.launchAt + change.delta * 1000) : change.at;
+      if (!Number.isFinite(launchAt) || !Number.isFinite(new Date(launchAt).getTime())) throw new TimingError('invalidTarget');
+      return {...r, plannedLaunchAt:r.plannedLaunchAt ?? r.launchAt, launchAt, confirmed:change.at!==undefined||!!r.confirmed,
+        arrivalAt:launchAt + (r.prepareSeconds + r.marchSeconds) * 1000};
+    }).sort((a,b) => a.launchAt - b.launchAt);
+    return {...plan, rows};
+  }
+  function rallyGaps(rows, margin = 0.2) {
+    const pad = parseDuration(margin) * 1000;
+    const sorted = [...rows].sort((a,b) => a.arrivalAt - b.arrivalAt);
+    return sorted.slice(0,-1).map((before,i) => {
+      const after = sorted[i+1], start = before.arrivalAt + pad, end = after.arrivalAt - pad;
+      return {before,after,start,end,width:(after.arrivalAt-before.arrivalAt)/1000,
+        safeWidth:Math.max(0,(end-start)/1000),usable:end>start};
+    });
+  }
+  function rallyTiming(row, now) {
+    const departAt = row.launchAt + row.prepareSeconds * 1000;
+    const arrivalAt = departAt + row.marchSeconds * 1000;
+    const stage = now < row.launchAt ? 'waiting' : now >= arrivalAt ? 'arrived' : !row.confirmed && now-row.launchAt<1200 ? 'launch' : now < departAt ? 'gathering' : 'marching';
+    return {stage, departAt, arrivalAt,remaining:Math.max(0,((stage==='waiting'||stage==='launch'?row.launchAt:stage==='gathering'?departAt:arrivalAt)-now)/1000)};
+  }
   function enemyCountdown(record, now) {
     const prepare = Math.max(0, (record.departAt - now) / 1000);
     const march = Math.max(0, (record.arrivalAt - Math.max(now, record.departAt)) / 1000);
@@ -127,7 +154,7 @@
     const stage = pet.clockChanged || now < pet.observedAt ? 'uncertain' : now >= end ? 'expired' : now >= warnAt ? 'soon' : 'active';
     return {end, warnAt, remaining:Math.max(0, (end - now) / 1000), stage, needsReview:stage !== 'active'};
   }
-  const api = {parseDuration, makeRallyPlan, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming};
+  const api = {parseDuration, makeRallyPlan, adjustRallyPlan, rallyGaps, rallyTiming, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KingshotTiming = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
