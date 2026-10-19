@@ -13,6 +13,19 @@
   const checked=m=>!!m?.march&&m.marchUpdatedAt>=room.battle.marchCheckAt;
   const modeKey=mode=>mode==='attack'?'battleAttackMode':mode==='defend'?'battleDefend':'battleHold';
   const allEnemies=()=>[...room.enemies,...(room.stoppedEnemies||[])];
+  let nicknameAccount=null,nicknameDefault='';
+  function fillDiscordNickname(user){
+    const input=$('room-name'),account=user?.id||null;
+    if(account!==nicknameAccount){input.value='';nicknameAccount=account;nicknameDefault='';}
+    if(!user)return;
+    const profile=user.identities?.find(i=>i.provider==='discord')?.identity_data||{},meta=user.user_metadata||{};
+    const value=[profile.custom_claims?.global_name,profile.global_name,meta.custom_claims?.global_name,meta.global_name,
+      profile.full_name,profile.preferred_username,profile.username,meta.full_name,meta.preferred_username,meta.username,profile.name,meta.name]
+      .find(v=>typeof v==='string'&&v.trim());
+    const next=Array.from(value?.trim()||'').slice(0,40).join('');
+    if(!input.value.trim()||input.value===nicknameDefault)input.value=next;
+    nicknameDefault=next;
+  }
   const petKey=()=>storageKey+':pet:'+room.me;
   function savePersonalPet(){try{if(personalPet)localStorage.setItem(petKey(),JSON.stringify(personalPet));else localStorage.removeItem(petKey());$('room-pet-error').hidden=true;}catch{$('room-pet-error').textContent=t('storageUnavailable');$('room-pet-error').hidden=false;}}
   function loadPersonalPet(){
@@ -234,6 +247,7 @@
   }
   async function authChanged(next){
     session=next;allowed=false;
+    fillDiscordNickname(session?.user);
     if(!session){try{sessionStorage.removeItem(providerKey);}catch{}online(false);if(room)await clearRoom(true);renderStatus();return;}
     try{
       if(await verify()){
@@ -258,7 +272,7 @@
     client=window.supabase.createClient(cfg.url,cfg.key,{auth:{flowType:'pkce',storage:storageAdapter(),persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:storageKey+':auth'}});
     client.auth.onAuthStateChange((event,next)=>{
       if(next?.provider_token)try{sessionStorage.setItem(providerKey,next.provider_token);}catch{}
-      if(event==='TOKEN_REFRESHED'){session=next;return;}
+      if(event==='TOKEN_REFRESHED'){session=next;fillDiscordNickname(session?.user);return;}
       setTimeout(()=>authChanged(next),0);
     });
     $('room-login').addEventListener('click',async()=>{
