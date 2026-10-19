@@ -96,7 +96,6 @@
     $('room-gap-hint').textContent=t('gapMarginHint',{margin:room.battle.margin});
     enemyRecords=room.enemies.filter(e=>e.active!==false).map(e=>({...e,marchSeconds:e.march}));
     defenseWindows=me()?.march?K.guardWindows(enemyRecords,me().march,room.battle.margin):[];
-    $('room-defense-windows').innerHTML=defenseWindows.length?defenseWindows.map(w=>`<div class="rally-gap ${w.usable?'has-gap':''}"><div><b>${esc(w.before.name)} → ${esc(w.after.name)}</b><small>${t('safeWindow')}: ${w.usable?esc(w.width+' '+t('seconds')):t('noSafeWindow')}</small></div><div>${w.usable?esc(K.formatUtc(w.start))+'<small>'+esc(K.formatUtc(w.end))+'</small>':t('noInsertionWindow')}</div></div>`).join(''):`<p class="result-placeholder">${t(me()?.march?'twoNeeded':'marchNeedsCheck')}</p>`;
     $('room-defense-rows').innerHTML=allEnemies().map(renderEnemyCard).join('');
     tick();
   }
@@ -131,11 +130,17 @@
       card.querySelector('[data-enemy-time]').textContent=UI.countdown((r.arrivalAt-time)/1000);
       card.querySelectorAll('[data-enemy-field="prepare"]').forEach(b=>b.disabled=!connected||busy||live.stage!=='gathering');
     }
+    const boostAnalyses=room.battle.mode==='defend'?UI.boostAdvisor($('room-defense-windows'),defenseWindows,me()?.march,time,{key:'user:'+room.me,enabled:connected&&allowed&&checked(me())}):[];
     if(!connected){showOrder(t('roomOfflineShort'),'—',t('roomOffline'));return;}
     if(room.battle.mode==='hold'){showOrder(t('battleHold'),'—',t('waitCommander'));return;}
     if(!checked(me())){showOrder(t('checkMarchFirst'),'—',t('marchNeedsCheck'));return;}
     if(room.battle.mode==='defend'){
       const w=K.nextWindow(defenseWindows,time);
+      const rescue=boostAnalyses.find(a=>!a.normal&&a.recommended);
+      if(!w&&rescue){const p=rescue.recommended,win=rescue.window;
+        $('room-order').classList.toggle('narrow-window',win.narrow);
+        showOrder(t('boostReachable'),UI.countdown((p.end-time)/1000),t('boostHeroInstruction',{items:UI.boostItems(p)}),K.formatUtc(win.arrivalStart)+' – '+K.formatUtc(win.arrivalEnd));return;
+      }
       if(!w){showOrder(t(enemyRecords.length<2?'waitingEnemy':'noWindow'),'—',t(enemyRecords.length<2?'twoNeeded':defenseWindows.some(w=>w.usable)?'missedHint':'gapShortHint'));return;}
       const go=time>=w.midpoint,remaining=(w.midpoint-time)/1000;
       $('room-order').classList.toggle('narrow-window',w.narrow);
@@ -321,6 +326,7 @@
     $('room-leave').addEventListener('click',()=>{if(!connected){clearRoom();return;}if(role()==='owner'&&!confirm(t('roomCloseConfirm')))return;run(role()==='owner'?'close':'leave');});
     $('room-copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(room.code);$('room-copy').textContent=t('roomCopied');}catch{const selection=getSelection(),range=document.createRange();range.selectNodeContents($('room-code'));selection.removeAllRanges();selection.addRange(range);}});
     $('language-select').addEventListener('change',()=>{renderMembers();renderStatus();tick();});
+    window.addEventListener('kingshot:boost-settings',tick);
     const command=(mode=room.battle.mode,check=false)=>{
       try{run('command',{mode,check,note:$('room-command-note').value,margin:K.parseDuration($('room-command-margin').value),revision:room.battle.revision});}catch{error('roomInvalid');}
     };

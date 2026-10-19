@@ -13,15 +13,15 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Kingshot">
   <!-- Select the installation language before the browser fetches a manifest. -->
-  <script src="assets/i18n-4f9c87e1e4bc3400.js"></script>
-  <link rel="stylesheet" href="assets/styles-1fa2104c49f440ff.css">
+  <script src="assets/i18n-8bc0d5833dc358c6.js"></script>
+  <link rel="stylesheet" href="assets/styles-7f5ef22d2204c319.css">
   <script src="assets/install-ff9ccd4e38b61f8b.js" defer></script>
-  <script src="assets/core-d008296aa8409c50.js" defer></script>
-  <script src="assets/battle-ui-8a5a1cbcdc19f167.js" defer></script>
+  <script src="assets/core-9265c50eec6c5d1c.js" defer></script>
+  <script src="assets/battle-ui-bbec697d9a8f67f4.js" defer></script>
   <script src="assets/supabase-ee3be8de192b97cb.js" defer></script>
   <script src="assets/roomconfig-f4b9c6854684fe8f.js" defer></script>
-  <script src="assets/app-328407d1863ff4c2.js" defer></script>
-  <script src="assets/rooms-cba57b5a66754df8.js" defer></script>
+  <script src="assets/app-14adbf0f7ed552cd.js" defer></script>
+  <script src="assets/rooms-f331520e2bc5c07b.js" defer></script>
 </head>
 <body>
   <aside class="sidebar">
@@ -105,6 +105,7 @@
           </div>
           <div class="result-column">
             <section class="hero-timer" id="guard-hero"><div class="timer-top"><span class="live-label"><span class="status-dot"></span> <span data-i18n="sendCue">补兵指令</span></span><span class="pill" id="guard-state"><span data-i18n="waitingRecord">等待记录</span></span></div><div class="timer-center"><div class="timer-kicker" id="guard-next-name"><span data-i18n="waitingEnemy">等待敌方攻击信息</span></div><div class="timer-value muted" id="guard-countdown">--<span>:</span>--</div><div class="guard-warning" id="guard-warning" role="status" aria-live="polite" hidden></div><div class="timer-instruction" id="guard-instruction"><span data-i18n="twoNeeded">记录至少两支敌方队伍，自动计算出征时机</span></div></div><div class="timer-footer"><div><small><span data-i18n="sendRange">你可以出征的时刻</span></small><strong id="guard-departure"><span data-i18n="notComputed">尚未计算</span></strong></div><div class="window-width"><small><span data-i18n="safeWindow">安全窗口</span></small><strong id="guard-width">—</strong></div></div></section>
+            <section class="panel landing-panel boost-panel"><h3 data-i18n="boostTitle">补兵窗口与道具分析</h3><div id="guard-boost-advisor"></div></section>
             <section class="panel battle-panel" aria-labelledby="battle-title">
               <div class="panel-header"><h2 id="battle-title" data-i18n="battleTitle">战场时间轴</h2><span class="pill neutral" data-i18n="battleHorizon">未来 60 秒</span></div>
               <p class="panel-caption" data-i18n="battleHint">出征与到达分开看；窗口已扣除两端容错。</p>

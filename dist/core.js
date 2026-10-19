@@ -109,6 +109,41 @@
     });
   }
   function nextWindow(windows, now) { return windows.find(w => w.usable && w.end > now) || null; }
+  function reinforcementBoosts(windows, ownMarch, now, options = {}) {
+    const march=parseDuration(ownMarch,false),delay=parseDuration(options.delay??1,false);
+    const stock=value=>{
+      if(value==null||value==='')return Infinity;
+      const n=Number(value);
+      if(!/^\d+$/.test(String(value))||!Number.isSafeInteger(n)||n>9999)throw new TimingError('boostInvalid');
+      return n;
+    };
+    const stock25=stock(options.stock25),stock50=stock(options.stock50);
+    if(delay<0.1||delay>30||!Number.isFinite(now))throw new TimingError('boostInvalid');
+    // Every click takes time before reducing the then-remaining march.
+    // Larger reductions first give the shortest trip for a fixed item mix.
+    const profiles=[];
+    let remaining50=march;
+    for(let n50=0;n50<=stock50;n50++){
+      let remaining=remaining50;
+      for(let n25=0;n25<=stock25;n25++){
+        profiles.push({n25,n50,count:n25+n50,seconds:(n25+n50)*delay+remaining});
+        if(remaining<=delay)break;
+        remaining=(remaining-delay)*0.75;
+      }
+      if(remaining50<=delay)break;
+      remaining50=(remaining50-delay)*0.5;
+    }
+    profiles.sort((a,b)=>a.count-b.count||a.n50-b.n50);
+    return windows.filter(w=>w.usable&&w.arrivalEnd>now).map(window=>{
+      const plans=profiles.map(p=>{
+        const start=window.arrivalStart-p.seconds*1000,end=window.arrivalEnd-p.seconds*1000;
+        const availableStart=Math.max(start,now+delay*1000);
+        return {...p,start,end,availableStart,midpoint:(availableStart+end)/2};
+      }).filter(p=>p.availableStart<p.end);
+      return {window,normal:plans.find(p=>p.count===0)||null,recommended:plans[0]||null,
+        only25:plans.find(p=>p.n50===0)||null,only50:plans.find(p=>p.n25===0)||null};
+    });
+  }
   // Both tracks share wall-clock time; departure is already shifted by own march.
   function battleTimeline(records, windows, now) {
     const span = 60000, limit = now + span;
@@ -165,7 +200,7 @@
     if(timing.stage==='uncertain')return true;
     return !Number.isFinite(confirmedAt)||confirmedAt<(timing.stage==='expired'?timing.end:timing.warnAt);
   }
-  const api = {parseDuration, formatMinutesSeconds, makeRallyPlan, adjustRallyPlan, rallyGaps, rallyTiming, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming, petMarchReview};
+  const api = {parseDuration, formatMinutesSeconds, makeRallyPlan, adjustRallyPlan, rallyGaps, rallyTiming, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, reinforcementBoosts, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming, petMarchReview};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KingshotTiming = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -189,14 +189,22 @@
       for(const r of plan.rows){const d=(r.launchAt-time)/1000,row=$(`launch-row-${r.id}`);row?.classList.toggle('past',d< -1.2);row?.classList.toggle('active',next?.launchAt===r.launchAt);txt(`launch-timer-${r.id}`,d>0?t('launchIn',{time:countdown(d)}):t('launchPassed'));if(state.tab==='rally'&&!roomActive&&!r.confirmed)alertAt(`rally:${plan.target}:${r.launchAt}`,r.launchAt,time,r.launchAt+1200);}
     }else{hero('rally',{state:t('waitingPlan'),name:t('readyTogether'),value:'--:--',instruction:t('generateHint'),muted:true});txt('rally-arrival',t('notScheduled'));}
     if(plan)window.KingshotBattleUI.tick($('rally-timeline'),plan.rows,time);
+    const boostAnalyses=state.tab==='guard'?window.KingshotBattleUI.boostAdvisor($('guard-boost-advisor'),windows,validOwn,time):[];
+    const rescue=boostAnalyses.find(a=>!a.normal&&a.recommended);
     const w=K.nextWindow(windows,time);
     $('guard-hero').classList.toggle('narrow-window',!!w?.narrow);
     $('guard-warning').hidden=!w?.narrow;
     txt('guard-warning',w?.narrow?'⚠ '+t('narrowGap')+' · '+t('hospitalWarning'):'');
     if(w){const d=(w.midpoint-time)/1000,go=time>=w.midpoint;hero('guard',{state:t(go?'sendNow':time>=w.start?'sendOpen':d<=3?'sendSoon':'waitingSend'),name:t('between',{before:rowName(w.before,'guard'),after:rowName(w.after,'guard')}),value:go?t('sendNow'):countdown(d),instruction:go?t('sendLeft',{time:countdown((w.end-time)/1000)}):t('sendAt',{time:clock(w.midpoint,true)}),go,soon:d>0&&d<=3});txt('guard-departure',`${clock(w.start,true)} – ${clock(w.end,true)}`);txt('guard-width',duration(w.width));if(state.tab==='guard'&&!roomActive)alertAt(`guard:${w.id}`,w.midpoint,time,w.end);}
+    else if(rescue){const p=rescue.recommended,win=rescue.window;
+      hero('guard',{state:t('boostReachable'),name:t('between',{before:rowName(win.before,'guard'),after:rowName(win.after,'guard')}),value:countdown((p.end-time)/1000),instruction:t('boostHeroInstruction',{items:window.KingshotBattleUI.boostItems(p)})});
+      $('guard-hero').classList.toggle('narrow-window',win.narrow);$('guard-warning').hidden=!win.narrow;
+      txt('guard-warning',win.narrow?'⚠ '+t('narrowGap')+' · '+t('hospitalWarning'):'');
+      txt('guard-departure',t('boostDepart')+': '+(p.start<=time?t('boostReady'):K.formatUtc(p.start))+' – '+K.formatUtc(p.end));txt('guard-width',duration(win.width));
+    }
     else{let instruction='twoNeeded',name='waitingEnemy',status='waitingRecord';if(records.size===1){name='needAnother';instruction='needAnotherHint';}else if(records.size>=2){status='noWindow';if(windows.some(w=>w.usable)){name='missed';instruction='missedHint';}else{name='gapShort';instruction='gapShortHint';}}hero('guard',{state:t(status),name:t(name),value:'--:--',instruction:t(instruction),muted:true});txt('guard-departure',t('noTime'));txt('guard-width','—');}
     for(const r of records.values()){const d=(r.arrivalAt-time)/1000;txt(`attack-timer-${r.id}`,d>0?t('attackIn',{time:countdown(d)}):t('attackPassed'));$(`attack-row-${r.id}`)?.classList.toggle('past',d<=0);updateEnemyClock(r,time);}
-    windows.forEach((w,i)=>$(`window-${i}`)?.classList.toggle('expired',w.end<=time));
+    windows.forEach((w,i)=>{const node=$(`window-${i}`);node?.classList.toggle('expired',w.arrivalEnd<=time);node?.classList.toggle('needs-boost',w.usable&&w.end<=time&&w.arrivalEnd>time);});
     if(state.tab==='guard')updateBattleTimeline(time);
     syncBattleAnimation();
   }
@@ -227,6 +235,7 @@
   };
   function changeLanguage(value){I.setLanguage(value);I.apply();syncControls();renderRallyRows();renderGuardRows();renderRallyTimeline();renderGuardTimeline();for(const [id,{err,suffix}]of errors)showError(id,err,suffix);if(sessionInvalid)txt('session-notice',t('sleepReset'));$('toast').hidden=true;updateTimers();syncDesktopAlarms();save();}
   function applySettings(){state.own=$('own-march').value;state.margin=$('guard-margin').value;try{K.parseDuration(state.own,false);K.parseDuration(state.margin);validOwn=state.own;validMargin=state.margin;settingsValid=true;showError('guard-settings-error');computeGuard();}catch(e){settingsValid=false;showError('guard-settings-error',e,'oldSettings');}syncControls();save();}
+  window.addEventListener('kingshot:boost-settings',updateTimers);
   document.addEventListener('click',initAudio,{capture:true});
   document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
   document.querySelectorAll('[data-schedule]').forEach(b=>b.addEventListener('click',()=>setSchedule(b.dataset.schedule)));
