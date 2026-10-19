@@ -1,15 +1,16 @@
 'use strict';
-const {app,BrowserWindow,ipcMain,powerMonitor,screen,Notification}=require('electron');
+const {app,BrowserWindow,ipcMain,powerMonitor,screen,Notification,dialog,net,shell}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs');
 const {pathToFileURL}=require('node:url');
 const {AlarmQueue}=require('./alarms.cjs');
+const {DesktopUpdates,updateMode,RELEASE_API}=require('./updates.cjs');
 const smoke=process.argv.includes('--smoke-test');
 if(smoke)app.setPath('userData',path.join(process.cwd(),'.runtime','smoke-user-data'));
 app.setAppUserModelId('io.github.link6.kingshot-assistant');
 const entry=path.join(__dirname,'..','dist','index.html'),entryURL=pathToFileURL(entry).href;
 const icon=path.join(__dirname,'icons',process.platform==='win32'?'icon.ico':'icon.png');
-let win,fullBounds,compact=false,pinned=false,alarmInterval;
+let win,fullBounds,compact=false,pinned=false,alarmInterval,updates;
 const queue=new AlarmQueue();
 const preferences=()=>path.join(app.getPath('userData'),'window.json');
 function validBounds(b){return b&&['x','y','width','height'].every(k=>Number.isInteger(b[k]))&&b.width>=400&&b.height>=400&&b.width<=4000&&b.height<=3000&&screen.getAllDisplays().some(d=>b.x<d.workArea.x+d.workArea.width&&b.x+b.width>d.workArea.x&&b.y<d.workArea.y+d.workArea.height&&b.y+b.height>d.workArea.y);}
@@ -49,6 +50,17 @@ if(!smoke&&!app.requestSingleInstanceLock())app.quit();
 else{
   app.on('second-instance',()=>{if(win){if(win.isMinimized())win.restore();win.focus();}});
   app.whenReady().then(async()=>{
+    const mode=updateMode({packaged:app.isPackaged&&!smoke,platform:process.platform,portable:!!(process.env.PORTABLE_EXECUTABLE_DIR||process.env.PORTABLE_EXECUTABLE_FILE),installed:fs.existsSync(path.join(path.dirname(app.getPath('exe')),'Uninstall Kingshot Assistant.exe')),appImage:!!process.env.APPIMAGE});
+    updates=new DesktopUpdates({version:app.getVersion(),mode,updater:mode==='auto'?require('electron-updater').autoUpdater:null,
+      fetchRelease:async()=>{const response=await net.fetch(RELEASE_API,{headers:{Accept:'application/vnd.github+json','User-Agent':'Kingshot-Assistant'},signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error('Release unavailable');const text=await response.text();if(text.length>256*1024)throw new Error('Release too large');return JSON.parse(text);},
+      notify:state=>{if(win&&!win.isDestroyed())win.webContents.send('updates:changed',state);},
+      confirmInstall:async(language,version)=>{const zh=language==='zh-CN';const result=await dialog.showMessageBox(win,{type:'question',title:zh?'安装更新':'Install update',message:zh?`安装 v${version} 会关闭应用并结束当前计时。现在安装并重启？`:`Installing v${version} closes the app and ends current timers. Install and restart now?`,buttons:zh?['安装并重启','稍后']:['Install and restart','Later'],defaultId:1,cancelId:1,noLink:true});return result.response===0;},
+      beforeInstall:()=>persist(),openExternal:url=>shell.openExternal(url)});
+    ipcMain.handle('updates:state',e=>{authorized(e);return updates.snapshot();});
+    ipcMain.handle('updates:check',e=>{authorized(e);return updates.check();});
+    ipcMain.handle('updates:download',e=>{authorized(e);return updates.download();});
+    ipcMain.handle('updates:install',(e,language)=>{authorized(e);return updates.install(language);});
+    ipcMain.handle('updates:releases',e=>{authorized(e);return updates.openRelease();});
     ipcMain.handle('window:pin',(e,flag)=>{authorized(e);return pin(flag);});
     ipcMain.handle('window:compact',(e,flag)=>{authorized(e);return resizeCompact(flag);});
     ipcMain.handle('window:state',e=>{authorized(e);return{pinned:win.isAlwaysOnTop()};});
@@ -62,8 +74,9 @@ else{
       for(const event of queue.due(wall))if(win&&!win.isFocused()&&!smoke&&Notification.isSupported())new Notification({title:event.title,body:event.body,icon,silent:true}).show();
     },100);
     await createWindow();
+    updates.start();
     app.on('activate',()=>{if(!win)createWindow().catch(()=>app.quit());});
   }).catch(err=>{console.error(err.message);app.exit(1);});
   app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
-  app.on('will-quit',()=>clearInterval(alarmInterval));
+  app.on('will-quit',()=>{clearInterval(alarmInterval);updates?.close();});
 }

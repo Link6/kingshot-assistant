@@ -68,5 +68,9 @@ module.exports=async function petSmoke(win,entry){
     const rallyStopIsolated=saved().rally[0].pet===null&&saved().rally[1].pet.startedAt===expected[1]&&$('rally-pet-reminders').hidden&&saved().guard[1].pet!==null;
     return {rallyReloadRestores,rallyReminderNavigates,rallyInvalidKeepsPet,rallyMarchRequiresRegenerate,rallyStopIsolated};
   }.toString()})(${JSON.stringify(rally.pets)})`);
-  return {...initial.checks,...after,...rally.checks,...rallyAfter};
+  const updates=await win.webContents.executeJavaScript(`(${async function(){
+    const state=await window.kingshotDesktop.getUpdateState();
+    return {desktopUpdaterBridge:state.mode==='development'&&!!state.currentVersion,desktopUpdatePanel:!document.getElementById('desktop-updates').hidden,desktopSmokeCannotUpdate:document.getElementById('desktop-update-check').disabled&&!state.canInstall&&!state.canDownload};
+  }.toString()})()`);
+  return {...initial.checks,...after,...rally.checks,...rallyAfter,...updates};
 };

@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
       - run: node scripts/prepare-web-assets.cjs
       - run: node --test tests/*.test.cjs
       - uses: actions/configure-pages@v5

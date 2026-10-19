@@ -114,7 +114,11 @@ npm run desktop
 | macOS | `npm run dist:mac` | DMG |
 | Linux | `npm run dist:linux` | AppImage |
 
-安装依赖时需要下载 Electron 运行时，打包也可能需要下载构建工具。成品输出至 `desktop-release/`。当前未配置代码签名、macOS 公证和自动更新。
+安装依赖时需要下载 Electron 运行时，打包也可能需要下载构建工具。成品输出至 `desktop-release/`。当前未配置代码签名和 macOS 公证。
+
+从 v0.3.0 开始，Windows Setup 安装版和 Linux AppImage 启动 10 秒后自动检查 GitHub Releases，此后每 6 小时检查一次，也可在顶部“桌面更新”面板手动检查。发现新版后可下载并查看进度，校验通过后选择“安装并重启”；安装前会确认结束当前计时。普通退出不会自动安装。网络或下载失败可重试，不影响正在进行的计时。Windows 便携版、未签名 macOS DMG 和非 AppImage Linux 运行环境提供新版检测及下载页入口；开发与烟雾测试不请求更新。旧版本需手动安装 v0.3.0 一次，之后受支持的版本才能使用应用内更新。
+
+打包配置内固定公开 GitHub 更新源，不向客户端注入令牌。Release 工作流随安装包发布 `latest.yml`、`latest-linux.yml` 和 blockmap，上传前验证清单指向的文件、版本、大小与 SHA-512。下载用户只需选择对应平台的程序，无需手动下载更新清单。
 
 也可在 GitHub Actions 的 [Build desktop apps](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml) 页面手动运行工作流。完成后，在该次运行的 Artifacts 区域下载对应的 `desktop-windows-latest`、`desktop-macos-latest` 或 `desktop-ubuntu-latest`。推送与 `package.json` 版本一致的 `v*` 标签时，三个平台构建通过后会自动发布 Release，附上可执行文件和 SHA-256 校验值；发布说明保存在 `release-notes/<标签>.md`。
 

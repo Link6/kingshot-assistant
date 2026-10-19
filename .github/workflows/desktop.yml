@@ -35,6 +35,8 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Verify packaged MIT license
         run: node scripts/verify-packaged-license.cjs
+      - name: Verify updater artifacts and checksums
+        run: node scripts/verify-update-assets.cjs
       - name: Verify Windows executable icons
         if: runner.os == 'Windows'
         run: node scripts/verify-windows-icons.cjs
@@ -56,6 +58,8 @@ jobs:
             desktop-release/*.exe
             desktop-release/*.dmg
             desktop-release/*.AppImage
+            desktop-release/latest*.yml
+            desktop-release/*.blockmap
           if-no-files-found: error
   release:
     if: startsWith(github.ref, 'refs/tags/v')

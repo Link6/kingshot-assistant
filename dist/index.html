@@ -13,15 +13,15 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Kingshot">
   <!-- Select the installation language before the browser fetches a manifest. -->
-  <script src="assets/i18n-a0dbf513b73a0ec7.js"></script>
-  <link rel="stylesheet" href="assets/styles-02a90216a1f1fe5e.css">
+  <script src="assets/i18n-b8470770727a0371.js"></script>
+  <link rel="stylesheet" href="assets/styles-54cc676d88b81089.css">
   <script src="assets/install-ff9ccd4e38b61f8b.js" defer></script>
   <script src="assets/core-973244d550a279c7.js" defer></script>
   <script src="assets/battle-ui-7fcadaaa8f18c833.js" defer></script>
   <script src="assets/timeline-ui-9bfee9e5a3a553e6.js" defer></script>
   <script src="assets/supabase-ee3be8de192b97cb.js" defer></script>
   <script src="assets/roomconfig-f4b9c6854684fe8f.js" defer></script>
-  <script src="assets/app-ae4a8aaf2c78c57d.js" defer></script>
+  <script src="assets/app-3267120dbe4de70e.js" defer></script>
   <script src="assets/rooms-c8a214a7a680f4be.js" defer></script>
 </head>
 <body>
@@ -45,6 +45,7 @@
         <p id="install-help" class="install-help" hidden></p>
       </section>
       <div class="utc-strip"><div><span data-i18n="utcNow">当前 UTC 时间</span><time id="utc-clock">—</time></div><small data-i18n="utcDevice">根据设备时钟换算</small></div>
+      <section id="desktop-updates" class="panel desktop-updates" hidden aria-labelledby="desktop-updates-title"><div class="update-copy"><strong id="desktop-updates-title" data-i18n="desktopUpdates"></strong><span id="desktop-version" class="pill neutral"></span><p id="desktop-update-status" role="status"></p><progress id="desktop-update-progress" max="100" value="0" hidden></progress><small id="desktop-update-hint"></small></div><div class="update-actions"><button id="desktop-update-check" class="button ghost small" data-i18n="updateCheck"></button><button id="desktop-update-download" class="button secondary" data-i18n="updateDownload" hidden></button><button id="desktop-update-install" class="button primary" data-i18n="updateInstall" hidden></button><button id="desktop-update-release" class="text-button" data-i18n="updateRelease" hidden></button></div></section>
       <div id="room-error" class="form-error room-global-error" role="alert" hidden></div>
       <div id="room-notice" class="notice" role="status" hidden></div>
       <details id="room-panel" class="panel room-panel">

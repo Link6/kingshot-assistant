@@ -18,10 +18,14 @@ files=("${windows[@]}" "${mac[@]}" "${linux[@]}")
 for file in "${files[@]}"; do
   [[ -s "$file" && "$file" == *"$version"* ]] || { echo "Invalid release asset: $file"; exit 1; }
 done
+[[ -s release-assets/latest.yml && -s release-assets/latest-linux.yml ]] || { echo 'Missing Windows/Linux update feeds'; exit 1; }
+[[ -s "${windows[0]}.blockmap" || -s "${windows[1]}.blockmap" ]] || { echo 'Missing Windows update blockmap'; exit 1; }
+metadata=(release-assets/latest*.yml release-assets/*.blockmap)
+files+=("${metadata[@]}")
 cp LICENSE release-assets/LICENSE
 (
   cd release-assets
-  sha256sum -- *.exe *.dmg *.AppImage LICENSE > SHA256SUMS.txt
+  sha256sum -- *.exe *.dmg *.AppImage latest*.yml *.blockmap LICENSE > SHA256SUMS.txt
 )
 files+=(release-assets/LICENSE release-assets/SHA256SUMS.txt)
 

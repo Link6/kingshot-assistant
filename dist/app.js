@@ -12,6 +12,27 @@
   const records=new Map(), errors=new Map(), fired=new Set();
   let battleNodes={attacks:[],windows:[]};
   let battleFrame=0,battleTrackWidth=0,battleSpan=60000;
+  let updateState=null;
+  function renderDesktopUpdate(){
+    if(!updateState)return;const s=updateState,version=s.version||s.currentVersion,busy=['checking','downloading','installing'].includes(s.status);
+    $('desktop-updates').hidden=false;txt('desktop-version',t('desktopCurrentVersion',{version:s.currentVersion}));
+    const key=s.mode==='development'?'updateDevelopment':({idle:'updateIdle',checking:'updateChecking',available:'updateAvailable',upToDate:'updateUpToDate',downloading:'updateDownloading',downloaded:'updateDownloaded',installing:'updateInstalling',error:s.errorCode==='download'?'updateDownloadFailed':s.errorCode==='install'?'updateInstallFailed':'updateCheckFailed'})[s.status]||'updateIdle';
+    txt('desktop-update-status',t(key,{version,percent:I.number(Math.round(s.percent||0)),received:I.number(Math.round((s.transferred||0)/104857.6)/10),total:s.total?I.number(Math.round(s.total/104857.6)/10):'—'}));
+    txt('desktop-update-hint',t(s.mode==='manual'?'updateManual':'updateTimingNotice'));
+    $('desktop-update-hint').hidden=s.mode==='development';
+    $('desktop-update-check').disabled=busy||!!s.canInstall||s.mode==='development';
+    $('desktop-update-download').hidden=!s.canDownload||s.mode!=='auto';$('desktop-update-download').disabled=busy;
+    $('desktop-update-install').hidden=!s.canInstall;$('desktop-update-install').disabled=busy;
+    $('desktop-update-release').hidden=!(s.mode==='manual'&&s.status==='available'||s.status==='error');
+    $('desktop-update-progress').hidden=!['downloading','downloaded'].includes(s.status);$('desktop-update-progress').value=s.percent||0;
+  }
+  function initDesktopUpdates(){
+    if(!desktop?.getUpdateState)return;
+    const apply=s=>{updateState=s;renderDesktopUpdate();};
+    const invoke=async(method)=>{try{const result=await desktop[method](I.language);if(result&&typeof result==='object')apply(result);}catch{updateState={...(updateState||{}),status:'error',errorCode:method==='installUpdate'?'install':method==='downloadUpdate'?'download':'check'};renderDesktopUpdate();}};
+    desktop.onUpdate(apply);desktop.getUpdateState().then(apply).catch(()=>{});
+    for(const [id,method] of [['check','checkForUpdates'],['download','downloadUpdate'],['install','installUpdate'],['release','openUpdateRelease']])$('desktop-update-'+id).addEventListener('click',()=>invoke(method));
+  }
   let roomActive=false,counterRows=[];
   const counterUI=window.KingshotCounterUI.create($('guard-counter'),d=>{
     const old=counterRows.find(r=>r.id===d.id);let leader=state.rally.find(l=>l.id===d.leaderId),next;
@@ -247,7 +268,7 @@
     renderRallyTimeline();renderGuardRows();renderGuardTimeline();updateTimers();syncDesktopAlarms();
   }
   function clearNotice(){sessionInvalid=false;$('session-notice').hidden=true;}
-  function syncControls(){txt('sound-toggle',t(state.sound?'soundOn':'soundOff'));$('sound-toggle').setAttribute('aria-pressed',String(state.sound));txt('focus-toggle',t(state.focus?'edit':'focus'));txt('pin-toggle',t(state.pinned?'pinOn':'pinOff'));$('pin-toggle').setAttribute('aria-pressed',String(state.pinned));$('language-select').value=I.language;txt('breadcrumb-current',t(roomActive?'battleRoom':state.tab));txt('guard-settings-state',t(settingsValid?'applied':'notApplied'));if(desktop)document.querySelector('.foreground-note').textContent=t('desktopHint');}
+  function syncControls(){renderDesktopUpdate();txt('sound-toggle',t(state.sound?'soundOn':'soundOff'));$('sound-toggle').setAttribute('aria-pressed',String(state.sound));txt('focus-toggle',t(state.focus?'edit':'focus'));txt('pin-toggle',t(state.pinned?'pinOn':'pinOff'));$('pin-toggle').setAttribute('aria-pressed',String(state.pinned));$('language-select').value=I.language;txt('breadcrumb-current',t(roomActive?'battleRoom':state.tab));txt('guard-settings-state',t(settingsValid?'applied':'notApplied'));if(desktop)document.querySelector('.foreground-note').textContent=t('desktopHint');}
   window.KingshotRoomBridge={
     setActive(active){
       roomActive=active;document.body.classList.toggle('room-mode',active);
@@ -317,7 +338,7 @@
   $('rally-example').addEventListener('click',()=>{if(state.rally.length&&!confirm(t('rallyExampleConfirm')))return;state.rally=[{...fresh('rally','A'),march:'35'},{...fresh('rally','B'),march:'25'},{...fresh('rally','C'),prepare:'1:00',march:'40'}];plan=null;$('rally-dirty').hidden=true;$('stop-rally').disabled=true;setSchedule('auto');showError('rally-error');renderRallyRows();renderRallyTimeline();updateTimers();syncDesktopAlarms();save();toast('rallyExampleToast');});
   $('guard-example').addEventListener('click',()=>{if(state.guard.length&&!confirm(t('guardExampleConfirm')))return;records.clear();counterRows=[];state.guard=[{...fresh('guard','A'),prepare:'4:00',march:'35'},{...fresh('guard','B'),prepare:'4:00',march:'38'}];renderGuardRows();computeGuard();save();toast('guardExampleToast');});
   $('clear-page').addEventListener('click',()=>{const kind=state.tab;if(!confirm(t('clearConfirm',{tool:t(kind)})))return;state[kind]=[];if(kind==='rally'){plan=null;state.lead='10';state.target='';$('rally-lead').value='10';$('rally-target').value='';setSchedule('auto');$('rally-dirty').hidden=true;$('stop-rally').disabled=true;showError('rally-error');renderRallyRows();renderRallyTimeline();}else{records.clear();counterRows=[];state.own=validOwn='29';state.margin=validMargin='0.2';$('own-march').value='29';$('guard-margin').value='0.2';settingsValid=true;showError('guard-settings-error');renderGuardRows();computeGuard();}clearNotice();syncControls();save();updateTimers();syncDesktopAlarms();toast('cleared');});
-  restore();I.apply();$('own-march').value=state.own;$('guard-margin').value=state.margin;$('rally-lead').value=state.lead;syncControls();renderRallyRows();renderRallyTimeline();renderGuardRows();computeGuard();setTab(location.hash==='#guard'?'guard':'rally');
+  restore();I.apply();initDesktopUpdates();$('own-march').value=state.own;$('guard-margin').value=state.margin;$('rally-lead').value=state.lead;syncControls();renderRallyRows();renderRallyTimeline();renderGuardRows();computeGuard();setTab(location.hash==='#guard'?'guard':'rally');
   // Cache the shared track width when layout changes, never read layout during
   // animation. Transform positioning preserves subpixel movement between ticks.
   new ResizeObserver(entries=>{battleTrackWidth=entries[0].contentRect.width;if(state.tab==='guard'&&!document.hidden)updateBattleTimeline(now(),true);}).observe($('battle-departures'));
