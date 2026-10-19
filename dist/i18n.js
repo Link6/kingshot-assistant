@@ -1,6 +1,14 @@
 (function(root){
   "use strict";
   const catalogue = {
+  "roomResumeOwned":["找回我创建的房间","Recover my hosted room"],
+  "roomNoOwned":["没有找到你创建的有效房间，可以创建新房间。","You do not host an active room. You can create a new one."],
+  "roomOwnedRecovered":["已找回你原来创建的房间。可以继续使用，或点击“关闭房间”后再创建。","Your hosted room has been recovered. Continue using it, or close it before creating another."],
+  "roomBackLocal":["返回本地（保留房间）","Back to local tools (keep room)"],
+  "roomBackRetained":["已返回本地，服务器房间仍保留。登录后可找回原房间继续使用或关闭。","Back in local tools. The server room is still active. Recover it after login to continue or close it."],
+  "roomClosed":["服务器上的房间已关闭或已过期，可以重新创建。","The server room is closed or expired. You can create another."],
+  "roomLeft":["已离开房间。","You have left the room."],
+  "roomCloseFailed":["未收到服务器关闭成功的确认，原房间资料已保留。请检查网络后重试“关闭房间”；返回本地不会关闭服务器房间。","Server closure was not confirmed. Your room details are retained. Check the network and retry Close room; returning to local tools does not close the server room."],
   "roomTimelineAttackHint":["逐队对照发起、集结和行军进度；间隙按指挥校准后的到达时间计算。自己的车头高亮显示。","Compare each leader's launch, gathering and march. Gaps use calibrated arrivals. Your own leader row is highlighted."],
   "roomTimelineDefenseHint":["普通出征、加速出征和援军到达分开显示。窗口已扣除两端容错；加速道具数量和顺序见下方方案。","Normal launch, boosted launch and reinforcement arrival have separate tracks. End margins are deducted. See item counts and order in the advice below."],
   "roomTimelineRange":["显示范围","Time range"],

@@ -7,6 +7,8 @@
   const scope=new URL('.',location.href).pathname,storageKey=`kingshot:${scope}:room`,providerKey=storageKey+':discord';
   let client,session=null,allowed=false,room=null,channel=null,busy=false,connected=false,realtimeReady=false,offset=0,bestRtt=Infinity,uncertainty=0,reading=false,refreshTimer,verifiedAt=0,leaderEdit=null,defenseWindows=[],enemyRecords=[],roomEpoch=0,personalPet=null;
   const role=()=>room?.members.find(m=>m.id===room.me)?.role;
+  let noticeKey='';
+  function notice(key){noticeKey=key;$('room-notice').hidden=!key;$('room-notice').textContent=key?t(key):'';}
   const roleText=r=>t(r==='owner'?'roomOwner':r==='commander'?'roomCommander':'roomMember');
   function error(key){$('room-error').hidden=!key;$('room-error').textContent=key?t(key):'';}
   function online(flag){connected=!!flag&&realtimeReady;renderStatus();tick();}
@@ -52,14 +54,16 @@
     $('room-march-status').classList.toggle('needs-check',!checked(me())||review);
   }
   function renderStatus(){
+    if(noticeKey)$('room-notice').textContent=t(noticeKey);
     $('room-summary').textContent=t(allowed?'roomVerified':'roomSolo');
     $('room-account').textContent=t(allowed?'roomVerified':session?'roomVerify':'roomNeedLogin');
     $('room-login').hidden=!!session&&allowed;$('room-logout').hidden=!session;
     $('room-entry').hidden=!allowed||!!room;
-    for(const id of ['room-login','room-create','room-join'])$(id).disabled=busy||id!=='room-login'&&!allowed;
+    for(const id of ['room-login','room-create','room-join','room-resume-owned'])$(id).disabled=busy||id!=='room-login'&&!allowed;
     if(!room)return;
     $('room-reauth').hidden=allowed;$('room-reauth').disabled=busy;
     $('room-code').textContent=room.code;$('room-leave').textContent=t(role()==='owner'?'roomClose':'roomLeave');
+    $('room-leave').disabled=busy;$('room-back-local').disabled=busy;
     $('room-sync').textContent=connected?t('roomConnected',{role:roleText(role()),ms:Math.ceil(uncertainty),expiry:new Date(room.expiresAt).toLocaleTimeString(I.language)})+(uncertainty>500?' · '+t('roomClockWarning'):''):t('roomOffline');
     $('room-sync').classList.toggle('disconnected',!connected);
     $('room-battle-mode').textContent=t(modeKey(room.battle.mode));
@@ -260,24 +264,38 @@
     }
     allowed=true;verifiedAt=Date.now();error('');await rpc('access');renderStatus();return true;
   }
-  async function run(action,data={},code=room?.code){
-    if(busy||!allowed||room&&!connected&&!['read','leave','close'].includes(action))return;
-    busy=true;error('');renderStatus();const epoch=roomEpoch;
+  async function run(action,data={},code=room?.code,quiet=false){
+    if(busy)return;
+    if(!allowed){error('roomReauth');renderStatus();return;}
+    if(room&&!connected&&!['read','leave','close','owned'].includes(action))return;
+    busy=true;error('');notice('');renderStatus();const epoch=roomEpoch;
     try{
       const result=await rpc(action,code,data);
       if(epoch!==roomEpoch)return;
-      if(result.left)await clearRoom();
+      if(action==='owned'&&!result.roomId){if(!quiet)notice('roomNoOwned');}
+      else if(result.left){await clearRoom();notice(action==='close'?'roomClosed':'roomLeft');}
       else{const first=!room;const recorded=action==='record'?result.enemies.find(e=>data.id?e.id===data.id:e.name===data.name&&Math.abs(e.recordedAt-data.at)<1):null;apply(result);if(action==='leader')resetLeader();if(recorded)$('room-enemy-select').value=recorded.id;if(first)await subscribe();}
-    }catch(err){if(epoch!==roomEpoch)return;await handleError(err);if(action==='leader'&&String(err?.message).includes('KS_CONFLICT'))editLeader(data.id);}finally{busy=false;renderStatus();}
+    }catch(err){
+      if(epoch!==roomEpoch)return;
+      const msg=String(err?.message||err);
+      if(action==='create'&&msg.includes('KS_OWNED')){
+        try{const existing=await rpc('owned','');if(epoch!==roomEpoch)return;if(existing.roomId){apply(existing);await subscribe();notice('roomOwnedRecovered');}else error('roomOwned');}catch(recoveryError){if(epoch===roomEpoch)await handleError(recoveryError);}
+      }else if(['close','leave'].includes(action)&&msg.includes('KS_ROOM')){await clearRoom();notice('roomClosed');}
+      else{await handleError(err);if(action==='close'&&!/KS_(VERIFY|LOGIN|ROLE)/.test(msg))error('roomCloseFailed');if(action==='leader'&&msg.includes('KS_CONFLICT'))editLeader(data.id);}
+    }finally{busy=false;renderStatus();}
   }
   async function authChanged(next){
+    if(session?.user?.id!==next?.user?.id||!next)roomEpoch++;
     session=next;allowed=false;
+    const epoch=roomEpoch;
     fillDiscordNickname(session?.user);
     if(!session){try{sessionStorage.removeItem(providerKey);}catch{}online(false);if(room)await clearRoom(true);renderStatus();return;}
     try{
       if(await verify()){
+        if(epoch!==roomEpoch)return;
         let saved='';try{saved=localStorage.getItem(storageKey)||'';}catch{}
-        if(saved&&!room){try{apply(await rpc('read',saved));await subscribe();}catch(err){saveCode('');await handleError(err);}}
+        if(saved&&!room){try{const restored=await rpc('read',saved);if(epoch!==roomEpoch)return;apply(restored);await subscribe();}catch(err){if(epoch!==roomEpoch)return;if(/KS_(ROOM|MEMBER)/.test(String(err?.message||err)))saveCode('');else{await handleError(err);return;}}}
+        if(!room&&epoch===roomEpoch)await run('owned',{},'',true);
       }
     }catch(err){await handleError(err);}renderStatus();
   }
@@ -311,6 +329,7 @@
     $('room-logout').addEventListener('click',async()=>{try{sessionStorage.removeItem(providerKey);await client.auth.signOut();}catch(err){await handleError(err);}});
     $('room-reauth').addEventListener('click',()=>$('room-login').click());
     $('room-create').addEventListener('click',()=>run('create',{name:$('room-name').value.trim()}));
+    $('room-resume-owned').addEventListener('click',()=>run('owned',{},''));
     $('room-join').addEventListener('click',()=>run('join',{name:$('room-name').value.trim()},$('room-code-input').value.trim().toUpperCase()));
     $('room-save-self').addEventListener('click',()=>{try{run('member',{march:K.parseDuration($('room-march').value,false)});}catch{error('roomInvalid');}});
     $('room-pet-save').addEventListener('click',()=>{if(!room)return;try{personalPet=K.makePetEstimate($('room-pet-elapsed').value,Date.now());savePersonalPet();tickPersonalPet();}catch{$('room-pet-error').textContent=t('petElapsedInvalid');$('room-pet-error').hidden=false;}});
@@ -343,7 +362,8 @@
         run('record',{id:enemy?.id||'',revision:enemy?.revision||0,name:$('room-enemy-name').value.trim(),mode,prepare:mode==='marching'?0:K.parseDuration($('room-enemy-prepare').value),march:K.parseDuration($('room-enemy-march').value,false),at});
       }catch{error('roomInvalid');}
     });
-    $('room-leave').addEventListener('click',()=>{if(!connected){clearRoom();return;}if(role()==='owner'&&!confirm(t('roomCloseConfirm')))return;run(role()==='owner'?'close':'leave');});
+    $('room-leave').addEventListener('click',()=>{if(busy)return;if(role()==='owner'&&!confirm(t('roomCloseConfirm')))return;run(role()==='owner'?'close':'leave');});
+    $('room-back-local').addEventListener('click',async()=>{if(busy)return;await clearRoom(true);notice('roomBackRetained');});
     $('room-copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(room.code);$('room-copy').textContent=t('roomCopied');}catch{const selection=getSelection(),range=document.createRange();range.selectNodeContents($('room-code'));selection.removeAllRanges();selection.addRange(range);}});
     $('language-select').addEventListener('change',()=>{renderMembers();renderStatus();tick();});
     window.addEventListener('kingshot:boost-settings',tick);

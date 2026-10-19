@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Kingshot">
   <!-- Select the installation language before the browser fetches a manifest. -->
-  <script src="assets/i18n-8b79739878c2e156.js"></script>
+  <script src="assets/i18n-9f63dd3844975372.js"></script>
   <link rel="stylesheet" href="assets/styles-62fa7393d635db5a.css">
   <script src="assets/install-ff9ccd4e38b61f8b.js" defer></script>
   <script src="assets/core-acaa095c94ae7472.js" defer></script>
@@ -22,7 +22,7 @@
   <script src="assets/supabase-ee3be8de192b97cb.js" defer></script>
   <script src="assets/roomconfig-f4b9c6854684fe8f.js" defer></script>
   <script src="assets/app-14adbf0f7ed552cd.js" defer></script>
-  <script src="assets/rooms-3ae93ab179f5ef8e.js" defer></script>
+  <script src="assets/rooms-57c243b571de3193.js" defer></script>
 </head>
 <body>
   <aside class="sidebar">
@@ -46,16 +46,17 @@
       </section>
       <div class="utc-strip"><div><span data-i18n="utcNow">当前 UTC 时间</span><time id="utc-clock">—</time></div><small data-i18n="utcDevice">根据设备时钟换算</small></div>
       <div id="room-error" class="form-error room-global-error" role="alert" hidden></div>
+      <div id="room-notice" class="notice" role="status" hidden></div>
       <details id="room-panel" class="panel room-panel">
         <summary><span data-i18n="roomTitle">房间协作</span><span id="room-summary" class="pill neutral"></span></summary>
         <div class="room-body"><p class="field-note" data-i18n="roomEntryHint">登录并进入房间后，将切换到独立作战界面，由房主或指挥统一下达指令。</p>
           <div class="room-auth"><span id="room-account"></span><button id="room-login" class="button secondary" data-i18n="roomLogin">使用 Discord 登录</button><button id="room-logout" class="text-button subtle" data-i18n="roomLogout" hidden>退出登录</button></div>
-          <div id="room-entry" hidden><label><span data-i18n="roomNick">游戏昵称</span><input id="room-name" maxlength="40" autocomplete="nickname"></label><div class="room-entry-actions"><button id="room-create" class="button secondary" data-i18n="roomCreate">创建房间</button><label><span data-i18n="roomCodeLabel">8 位房间码</span><input id="room-code-input" maxlength="8" autocapitalize="characters" spellcheck="false" autocomplete="off"></label><button id="room-join" class="button secondary" data-i18n="roomJoin">加入房间</button></div></div>
+          <div id="room-entry" hidden><label><span data-i18n="roomNick">游戏昵称</span><input id="room-name" maxlength="40" autocomplete="nickname"></label><div class="room-entry-actions"><button id="room-resume-owned" class="button ghost" data-i18n="roomResumeOwned">找回我创建的房间</button><button id="room-create" class="button secondary" data-i18n="roomCreate">创建房间</button><label><span data-i18n="roomCodeLabel">8 位房间码</span><input id="room-code-input" maxlength="8" autocapitalize="characters" spellcheck="false" autocomplete="off"></label><button id="room-join" class="button secondary" data-i18n="roomJoin">加入房间</button></div></div>
           <p class="room-limits" data-i18n="roomLimits"></p>
         </div>
       </details>
       <section id="room-battle" class="room-body battle-room" aria-labelledby="room-battle-title" hidden>
-        <header class="battle-room-heading"><div><div class="eyebrow" data-i18n="battleRoom">房间作战</div><h1 id="room-battle-title"><span id="room-code"></span><span id="room-battle-mode" class="pill neutral"></span></h1></div><div class="room-leader-actions"><button id="room-reauth" class="button secondary" data-i18n="roomLogin" hidden></button><button id="room-copy" class="button ghost" data-i18n="roomCopy"></button><button id="room-leave" class="button ghost"></button></div></header>
+        <header class="battle-room-heading"><div><div class="eyebrow" data-i18n="battleRoom">房间作战</div><h1 id="room-battle-title"><span id="room-code"></span><span id="room-battle-mode" class="pill neutral"></span></h1></div><div class="room-leader-actions"><button id="room-reauth" class="button secondary" data-i18n="roomLogin" hidden></button><button id="room-copy" class="button ghost" data-i18n="roomCopy"></button><button id="room-back-local" class="button ghost" data-i18n="roomBackLocal">返回本地（保留房间）</button><button id="room-leave" class="button ghost"></button></div></header>
         <p id="room-sync" class="room-sync" role="status"></p>
         <p id="room-announcement" class="command-announcement" hidden></p>
         <div class="battle-personal-grid">
