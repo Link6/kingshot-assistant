@@ -11,8 +11,26 @@
   let previousWall=Date.now(),previousMono=performance.now();
   const records=new Map(), errors=new Map(), fired=new Set();
   let battleNodes={attacks:[],windows:[]};
-  let battleFrame=0,battleTrackWidth=0;
-  let roomActive=false;
+  let battleFrame=0,battleTrackWidth=0,battleSpan=60000;
+  let roomActive=false,counterRows=[];
+  const counterUI=window.KingshotCounterUI.create($('guard-counter'),d=>{
+    const old=counterRows.find(r=>r.id===d.id);let leader=state.rally.find(l=>l.id===d.leaderId),next;
+    if(d.op==='save'){
+      if(!old&&counterRows.length>=30)throw {code:'rowLimit'};
+      if(!leader){if(state.rally.length>=30)throw {code:'rowLimit'};if(!d.name.trim())throw {code:'roomInvalid'};leader={...fresh('rally',d.name.trim()),prepare:String(d.prepare),march:String(d.march),enabled:false};}
+      next=K.makeCounterRally(leader,records.get(d.enemyId),now(),{...d,id:old?.id||uid(),revision:(old?.revision||0)+1});
+      if(!state.rally.some(l=>l.id===leader.id)){state.rally.push(leader);renderRallyRows();save();}
+    }else{
+      if(!old||old.revision!==d.revision)throw {code:'roomConflict'};
+      if(d.op==='cancel')next={...old,cancelled:true,revision:old.revision+1};
+      else if(d.op==='rebase'){
+        leader=state.rally.find(l=>l.id===old.leaderId);if(!leader)throw {code:'counterLeaderChanged'};
+        next=K.makeCounterRally(leader,records.get(old.enemyId),now(),{offset:old.offset,id:old.id,revision:old.revision+1,...(old.confirmed&&!old.cancelled?{mode:'gathering',remaining:0}:{})});
+        if(old.confirmed&&!old.cancelled)next={...next,launchAt:old.launchAt,plannedLaunchAt:old.plannedLaunchAt,arrivalAt:old.launchAt+(next.prepareSeconds+next.marchSeconds)*1000};
+      }else next=K.adjustCounterRally(old,d,now());
+    }
+    counterRows=old?counterRows.map(r=>r.id===old.id?next:r):[...counterRows,next];renderBattleTimeline();updateTimers();syncDesktopAlarms();return next;
+  });
   const now=()=>Date.now();
   function txt(id,value){const el=$(id);if(el&&el.textContent!==String(value))el.textContent=value;}
   function toast(key,params){txt('toast',t(key,params));$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,3600);}
@@ -132,18 +150,20 @@
   }
   function renderBattleTimeline(){
     const sorted=[...records.values()].sort((a,b)=>a.arrivalAt-b.arrivalAt);
-    $('battle-empty').hidden=!!sorted.length;$('battle-chart').hidden=!sorted.length;
+    $('battle-empty').hidden=!!(sorted.length||counterRows.some(r=>!r.cancelled));$('battle-chart').hidden=!(sorted.length||counterRows.some(r=>!r.cancelled));
     const rangeText=(w,kind)=>!w.usable?t('battleBlockedDetail',{before:rowName(w.before,'guard'),after:rowName(w.after,'guard')}):t('battleRange',{kind:t(kind==='departure'?'battleDeparture':'battleArrival'),before:rowName(w.before,'guard'),after:rowName(w.after,'guard'),start:K.formatUtc(kind==='departure'?w.start:w.arrivalStart),end:K.formatUtc(kind==='departure'?w.end:w.arrivalEnd),width:duration(w.width)})+(w.narrow?' · '+t('hospitalWarning'):'');
     const band=(w,i,kind)=>`<button type="button" id="battle-${kind}-${i}" class="battle-band ${kind} ${!w.usable?'blocked':w.narrow?'narrow':''}" title="${esc(rangeText(w,kind))}" aria-label="${esc(rangeText(w,kind))}" data-battle-detail="${esc(rangeText(w,kind))}" hidden>${w.usable?esc(duration(w.width)):''}</button>`;
     $('battle-departures').innerHTML=windows.map((w,i)=>w.usable?band(w,i,'departure'):'').join('');
     $('battle-arrivals').innerHTML=windows.map((w,i)=>band(w,i,'arrival')).join('');
     $('battle-enemies').innerHTML=sorted.map((r,i)=>`<div class="battle-row" id="battle-enemy-${i}" hidden><span class="battle-label" title="${esc(rowName(r,'guard'))}">${esc(rowName(r,'guard'))}</span><div class="battle-track"><span class="battle-marker" id="battle-marker-${i}" role="img" aria-label="${esc(t('battleAttackDetail',{name:rowName(r,'guard'),time:K.formatUtc(r.arrivalAt)}))}" title="${esc(K.formatUtc(r.arrivalAt))}"><i></i><span>${K.formatUtc(r.arrivalAt).slice(11,23)}</span></span></div></div>`).join('');
-    battleNodes={attacks:sorted.map((r,i)=>({row:$(`battle-enemy-${i}`),marker:$(`battle-marker-${i}`)})),windows:windows.map((w,i)=>({departure:$(`battle-departure-${i}`),arrival:$(`battle-arrival-${i}`)}))};
+    $('battle-counters').innerHTML=counterRows.filter(r=>!r.cancelled).map(r=>`<div class="battle-row counter-time-row"><span class="battle-label">${esc(t('counterTimeline')+' · '+r.name)}</span><div class="battle-track">${K.counterSegments(r).map((s,i)=>`<button type="button" class="${s.point?'room-time-marker':'battle-band room-time-band'} ${s.kind} counter-track-item" data-counter-timeline="${r.id}:${i}" data-battle-detail="${esc(r.name+' · '+t(s.kind==='target'?'counterPlannedTarget':s.kind==='counter'?'counterTimeline':s.kind==='launch'?'roomTimelineLaunch':s.kind==='gather'?'roomTimelineGather':'roomTimelineMarch')+' · '+K.formatUtc(s.start))}" hidden>${s.point?'<i></i>':''}</button>`).join('')}</div></div>`).join('');
+    battleNodes={counters:counterRows.filter(r=>!r.cancelled).flatMap(r=>K.counterSegments(r).map((s,i)=>({...s,node:$('battle-counters').querySelector(`[data-counter-timeline="${r.id}:${i}"]`)}))),attacks:sorted.map((r,i)=>({row:$(`battle-enemy-${i}`),marker:$(`battle-marker-${i}`)})),windows:windows.map((w,i)=>({departure:$(`battle-departure-${i}`),arrival:$(`battle-arrival-${i}`)}))};
     txt('battle-detail',t('battleDetailHint'));
   }
   function updateBattleTimeline(time,positionsOnly=false){
-    if(!records.size)return;
-    const view=K.battleTimeline([...records.values()],windows,time);
+    if(!records.size&&!counterRows.some(r=>!r.cancelled))return;
+    for(const s of battleNodes.counters||[]){const range=s.point?(s.start>=time&&s.start<=time+battleSpan?{left:(s.start-time)/battleSpan*100,width:0}:null):s.end>s.start?K.timelineRange(s.start,s.end,time,battleSpan):null;s.node.hidden=!range;if(range){s.node.style.transform=`translateX(${range.left/100*battleTrackWidth}px)`;if(!s.point)s.node.style.width=range.width+'%';}}
+    const view=K.battleTimeline([...records.values()],windows,time,battleSpan);
     const position=(el,left)=>{el.style.transform=`translateX(${left/100*battleTrackWidth}px)`;};
     const place=(el,range,active)=>{if(!el)return;if(el.hidden!==!range)el.hidden=!range;if(!range)return;position(el,range.left);el.style.width=range.width+'%';el.classList.toggle('open',active);};
     view.attacks.forEach((a,i)=>{const {row,marker}=battleNodes.attacks[i];if(row.hidden!==!a.visible)row.hidden=!a.visible;if(a.visible){position(marker,a.left);marker.classList.toggle('align-left',a.left>65);}});
@@ -156,12 +176,12 @@
     txt('battle-status',status);
   }
   function syncBattleAnimation(){
-    if(roomActive||state.tab!=='guard'||document.hidden||!records.size){if(battleFrame)cancelAnimationFrame(battleFrame);battleFrame=0;return;}
+    if(roomActive||state.tab!=='guard'||document.hidden||!records.size&&!counterRows.some(r=>!r.cancelled)){if(battleFrame)cancelAnimationFrame(battleFrame);battleFrame=0;return;}
     if(!battleFrame)battleFrame=requestAnimationFrame(animateBattle);
   }
   function animateBattle(){
     battleFrame=0;
-    if(roomActive||state.tab!=='guard'||document.hidden||!records.size)return;
+    if(roomActive||state.tab!=='guard'||document.hidden||!records.size&&!counterRows.some(r=>!r.cancelled))return;
     // Read the current deadline each frame, so adjustments take effect without
     // easing or a second clock drifting away from the reinforcement countdown.
     updateBattleTimeline(now(),true);
@@ -190,6 +210,8 @@
     }else{hero('rally',{state:t('waitingPlan'),name:t('readyTogether'),value:'--:--',instruction:t('generateHint'),muted:true});txt('rally-arrival',t('notScheduled'));}
     if(plan)window.KingshotBattleUI.tick($('rally-timeline'),plan.rows,time);
     const boostAnalyses=state.tab==='guard'?window.KingshotBattleUI.boostAdvisor($('guard-boost-advisor'),windows,validOwn,time):[];
+    counterUI.update({rows:counterRows,leaders:state.rally,enemies:[...records.values()],editable:true,online:true},time);
+    for(const r of counterRows){const s=K.counterStatus(r,[...records.values()],time,state.rally);if(state.tab==='guard'&&s.ready&&!r.confirmed)alertAt('counter:'+r.id+':'+r.launchAt,r.launchAt,time,r.launchAt+1200);}
     const rescue=boostAnalyses.find(a=>!a.normal&&a.recommended);
     const w=K.nextWindow(windows,time);
     $('guard-hero').classList.toggle('narrow-window',!!w?.narrow);
@@ -211,14 +233,16 @@
   function syncDesktopAlarms(){
     if(!desktop)return;const events=[];
     if(state.sound&&state.tab==='rally'&&plan&&!roomActive)for(const r of plan.rows)events.push({id:`r:${r.launchAt}`,at:r.launchAt,expiresAt:r.launchAt+1200,title:t('launchNow'),body:rowName(r)});
+    if(state.sound&&state.tab==='guard'&&!roomActive)for(const r of counterRows){if(K.counterStatus(r,[...records.values()],now(),state.rally).ready&&!r.confirmed)events.push({id:'counter:'+r.id+':'+r.launchAt,at:r.launchAt,expiresAt:r.launchAt+1200,title:t('counterTitle'),body:r.name});}
     if(state.sound&&state.tab==='guard'&&!roomActive)for(const w of windows.filter(w=>w.usable))events.push({id:`g:${w.id}`,at:w.midpoint,expiresAt:w.end,title:t('sendNow'),body:t('between',{before:rowName(w.before,'guard'),after:rowName(w.after,'guard')})});
     if(state.sound&&!roomActive)for(const kind of ['rally','guard'])for(const r of state[kind]){if(kind==='rally'&&r.enabled===false)continue;const pet=K.petTiming(r.pet,now());if(pet&&pet.stage!=='uncertain')events.push({id:`pet:${r.id}:${r.pet.observedAt}:${r.pet.startedAt}`,at:pet.warnAt,expiresAt:pet.end,title:t(kind==='rally'?'rallyPetReminderTitle':'petReminderTitle'),body:t(kind==='rally'?'rallyPetReminder':'petReminder',{names:rowName(r,kind)})});}
     desktop.setAlarms(events).catch(()=>{});
   }
   function invalidateSession(clockChanged=false){
+    const hadCounters=counterRows.length;counterRows=[];
     if(clockChanged){for(const r of [...state.rally,...state.guard])if(r.pet)r.pet.clockChanged=true;save();}
     if(roomActive)window.dispatchEvent(new CustomEvent('kingshot:room-resync',{detail:{clockChanged}}));
-    if(!plan&&!records.size){updateTimers();syncDesktopAlarms();return;}
+    if(!plan&&!records.size&&!hadCounters){updateTimers();syncDesktopAlarms();return;}
     plan=null;records.clear();windows=[];fired.clear();$('rally-dirty').hidden=true;$('stop-rally').disabled=true;sessionInvalid=true;txt('session-notice',t('sleepReset'));$('session-notice').hidden=false;
     renderRallyTimeline();renderGuardRows();renderGuardTimeline();updateTimers();syncDesktopAlarms();
   }
@@ -241,7 +265,7 @@
   document.querySelectorAll('[data-schedule]').forEach(b=>b.addEventListener('click',()=>setSchedule(b.dataset.schedule)));
   for(const kind of ['rally','guard']){
     $(`add-${kind}`).addEventListener('click',()=>addRow(kind));$(`first-${kind}`).addEventListener('click',()=>addRow(kind));
-    $(`${kind}-rows`).addEventListener('input',e=>{const holder=e.target.closest('[data-id]'),field=e.target.dataset.field;if(!holder||!field)return;const r=state[kind].find(r=>r.id===holder.dataset.id);r[field]=e.target.value;if(kind==='rally'){dirtyPlan();updateRallyHint(r);}else updateGuardRow(r);save();});
+    $(`${kind}-rows`).addEventListener('input',e=>{const holder=e.target.closest('[data-id]'),field=e.target.dataset.field;if(!holder||!field)return;const r=state[kind].find(r=>r.id===holder.dataset.id);r[field]=e.target.value;if(kind==='rally'){dirtyPlan();updateRallyHint(r);}else updateGuardRow(r);save();if(kind==='rally'&&counterRows.length){updateTimers();syncDesktopAlarms();}});
     $(`${kind}-rows`).addEventListener('input',e=>{if(!e.target.matches('[data-pet-elapsed]'))return;const r=state[kind].find(r=>r.id===e.target.closest('[data-id]').dataset.id);r.petElapsed=e.target.value;save();});
     $(`${kind}-rows`).addEventListener('click',e=>{
       const holder=e.target.closest('[data-id]');if(!holder)return;const id=holder.dataset.id,r=state[kind].find(r=>r.id===id);
@@ -284,14 +308,15 @@
   $('stop-rally').addEventListener('click',()=>{if(!confirm(t('stopConfirm')))return;plan=null;$('rally-dirty').hidden=true;$('stop-rally').disabled=true;renderRallyTimeline();updateTimers();syncDesktopAlarms();});
   $('guard-rows').addEventListener('focusout',e=>{if(e.target.matches('[data-field="prepare"]'))e.target.value=prepareInput(e.target.value);});
   $('own-march').addEventListener('input',applySettings);$('guard-margin').addEventListener('input',applySettings);
+  $('battle-span').addEventListener('change',e=>{battleSpan=Number(e.target.value)*1000;document.querySelectorAll('#battle-chart .battle-axis .battle-track>span').forEach((n,i)=>n.textContent=i?'+'+(battleSpan/1000*i/4)+'s':'0');updateTimers();});
   $('battle-chart').addEventListener('click',e=>{const band=e.target.closest('[data-battle-detail]');if(band)txt('battle-detail',band.dataset.battleDetail);});
   $('language-select').addEventListener('change',e=>changeLanguage(e.target.value));
   $('sound-toggle').addEventListener('click',()=>{state.sound=!state.sound;syncControls();save();syncDesktopAlarms();if(state.sound){initAudio();beep(false);if(!audio)toast('noAudio');}});
   $('focus-toggle').addEventListener('click',async()=>{state.focus=!state.focus;document.body.classList.toggle('focus-mode',state.focus);syncControls();if(desktop)try{await desktop.setCompact(state.focus);}catch{toast('desktopError');}});
   $('pin-toggle').addEventListener('click',async()=>{try{state.pinned=await desktop.setPinned(!state.pinned);syncControls();}catch{toast('desktopError');}});
   $('rally-example').addEventListener('click',()=>{if(state.rally.length&&!confirm(t('rallyExampleConfirm')))return;state.rally=[{...fresh('rally','A'),march:'35'},{...fresh('rally','B'),march:'25'},{...fresh('rally','C'),prepare:'1:00',march:'40'}];plan=null;$('rally-dirty').hidden=true;$('stop-rally').disabled=true;setSchedule('auto');showError('rally-error');renderRallyRows();renderRallyTimeline();updateTimers();syncDesktopAlarms();save();toast('rallyExampleToast');});
-  $('guard-example').addEventListener('click',()=>{if(state.guard.length&&!confirm(t('guardExampleConfirm')))return;records.clear();state.guard=[{...fresh('guard','A'),prepare:'4:00',march:'35'},{...fresh('guard','B'),prepare:'4:00',march:'38'}];renderGuardRows();computeGuard();save();toast('guardExampleToast');});
-  $('clear-page').addEventListener('click',()=>{const kind=state.tab;if(!confirm(t('clearConfirm',{tool:t(kind)})))return;state[kind]=[];if(kind==='rally'){plan=null;state.lead='10';state.target='';$('rally-lead').value='10';$('rally-target').value='';setSchedule('auto');$('rally-dirty').hidden=true;$('stop-rally').disabled=true;showError('rally-error');renderRallyRows();renderRallyTimeline();}else{records.clear();state.own=validOwn='29';state.margin=validMargin='0.2';$('own-march').value='29';$('guard-margin').value='0.2';settingsValid=true;showError('guard-settings-error');renderGuardRows();computeGuard();}clearNotice();syncControls();save();updateTimers();syncDesktopAlarms();toast('cleared');});
+  $('guard-example').addEventListener('click',()=>{if(state.guard.length&&!confirm(t('guardExampleConfirm')))return;records.clear();counterRows=[];state.guard=[{...fresh('guard','A'),prepare:'4:00',march:'35'},{...fresh('guard','B'),prepare:'4:00',march:'38'}];renderGuardRows();computeGuard();save();toast('guardExampleToast');});
+  $('clear-page').addEventListener('click',()=>{const kind=state.tab;if(!confirm(t('clearConfirm',{tool:t(kind)})))return;state[kind]=[];if(kind==='rally'){plan=null;state.lead='10';state.target='';$('rally-lead').value='10';$('rally-target').value='';setSchedule('auto');$('rally-dirty').hidden=true;$('stop-rally').disabled=true;showError('rally-error');renderRallyRows();renderRallyTimeline();}else{records.clear();counterRows=[];state.own=validOwn='29';state.margin=validMargin='0.2';$('own-march').value='29';$('guard-margin').value='0.2';settingsValid=true;showError('guard-settings-error');renderGuardRows();computeGuard();}clearNotice();syncControls();save();updateTimers();syncDesktopAlarms();toast('cleared');});
   restore();I.apply();$('own-march').value=state.own;$('guard-margin').value=state.margin;$('rally-lead').value=state.lead;syncControls();renderRallyRows();renderRallyTimeline();renderGuardRows();computeGuard();setTab(location.hash==='#guard'?'guard':'rally');
   // Cache the shared track width when layout changes, never read layout during
   // animation. Transform positioning preserves subpixel movement between ticks.

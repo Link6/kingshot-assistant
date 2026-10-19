@@ -1,0 +1,70 @@
+-- New feature validation runs inside a rollback-only subtransaction.
+do $test$
+declare
+  host uuid:='f8000000-0000-4000-8000-000000000001'; cmd uuid:='f8000000-0000-4000-8000-000000000002'; member_id uuid:='f8000000-0000-4000-8000-000000000003';
+  result jsonb; previous jsonb; code text; other_code text; rid uuid; linked uuid; manual uuid; enemy uuid; counter_id uuid; target_ms numeric; launch_ms numeric; at_ms numeric; revision bigint;
+begin
+  begin
+    insert into auth.users(id) values(host),(cmd),(member_id);
+    perform public.kingshot_discord_grant(id,'123456789012345678','1409235905629130915',true) from auth.users where id in(host,cmd,member_id);
+    perform set_config('request.jwt.claim.sub',host::text,true);
+    result:=public.kingshot_room('create','',jsonb_build_object('name','Counter host'));code:=result->>'code';rid:=(result->>'roomId')::uuid;
+    perform set_config('request.jwt.claim.sub',cmd::text,true);perform public.kingshot_room('join',code,jsonb_build_object('name','Commander'));
+    perform set_config('request.jwt.claim.sub',member_id::text,true);perform public.kingshot_room('join',code,jsonb_build_object('name','Leader'));
+    perform public.kingshot_room('member',code,jsonb_build_object('march',30));
+    perform set_config('request.jwt.claim.sub',host::text,true);
+    result:=public.kingshot_room('role',code,jsonb_build_object('userId',cmd,'role','commander'));
+    result:=public.kingshot_room('leader',code,jsonb_build_object('op','save','userId',member_id,'prepare',300));linked:=(result#>>'{leaders,0,id}')::uuid;
+    result:=public.kingshot_room('leader',code,jsonb_build_object('op','toggle','id',linked,'revision',1,'enabled',false));
+    begin perform public.kingshot_room('counter',code,jsonb_build_object('op','save'));raise exception 'TEST wrong mode';exception when others then if sqlerrm<>'KS_COUNTER_MODE' then raise;end if;end;
+    result:=public.kingshot_room('command',code,jsonb_build_object('revision',result#>'{battle,revision}','mode','defend'));
+    at_ms:=extract(epoch from clock_timestamp())*1000;
+    result:=public.kingshot_room('record',code,jsonb_build_object('name','Enemy reference','mode','gathering','prepare',360,'march',35,'at',at_ms));
+    enemy:=(result#>>'{enemies,0,id}')::uuid;target_ms:=(result#>>'{enemies,0,arrivalAt}')::numeric+1000;
+    perform set_config('request.jwt.claim.sub',member_id::text,true);
+    begin perform public.kingshot_room('counter',code,jsonb_build_object('op','save'));raise exception 'TEST member permission';exception when others then if sqlerrm<>'KS_ROLE' then raise;end if;end;
+    perform set_config('request.jwt.claim.sub',cmd::text,true);
+    result:=public.kingshot_room('counter',code,jsonb_build_object('op','save','leaderId',linked,'enemyId',enemy,'enemyRevision',1,'offset',1));
+    counter_id:=(result#>>'{counterRows,0,id}')::uuid;launch_ms:=(result#>>'{counterRows,0,launchAt}')::numeric;
+    if counter_id is null or (result#>>'{counterRows,0,targetAt}')::numeric<>target_ms or launch_ms<>target_ms-330000 then raise exception 'TEST inverse timing';end if;
+    if result#>>'{battle,mode}'<>'defend' or result->'plan'<>'null'::jsonb or jsonb_array_length(result->'leaders')<>0 then raise exception 'TEST defense or disabled roster changed';end if;
+    previous:=result#>'{counterRows,0}';
+    begin perform public.kingshot_room('counter',code,jsonb_build_object('op','save','leaderId',linked,'enemyId',enemy,'enemyRevision',1,'offset',1));raise exception 'TEST duplicate';exception when others then if sqlerrm<>'KS_CONFLICT' then raise;end if;end;
+    result:=public.kingshot_room('counter',code,jsonb_build_object('op','adjust','id',counter_id,'revision',1,'delta',0.1));
+    if (result#>>'{counterRows,0,launchAt}')::numeric<>launch_ms+100 then raise exception 'TEST tenths';end if;
+    begin perform public.kingshot_room('counter',code,jsonb_build_object('op','cancel','id',counter_id,'revision',1));raise exception 'TEST stale version';exception when others then if sqlerrm<>'KS_CONFLICT' then raise;end if;end;
+    result:=public.kingshot_room('adjust',code,jsonb_build_object('id',enemy,'revision',1,'field','march','delta',1));
+    if result#>'{counterRows,0}' is distinct from (previous||jsonb_build_object('launchAt',launch_ms+100,'arrivalAt',target_ms+100,'revision',2)) then raise exception 'TEST enemy silently moved our rally';end if;
+    result:=public.kingshot_room('counter',code,jsonb_build_object('op','rebase','id',counter_id,'revision',2));
+    if (result#>>'{counterRows,0,launchAt}')::numeric<>launch_ms+1000 or (result#>>'{counterRows,0,enemyRevision}')::bigint<>2 then raise exception 'TEST explicit rebase';end if;
+    at_ms:=extract(epoch from clock_timestamp())*1000;
+    result:=public.kingshot_room('counter',code,jsonb_build_object('op','observe','id',counter_id,'revision',3,'mode','gathering','remaining',120,'at',at_ms));
+    if result#>'{counterRows,0,confirmed}'<>'true'::jsonb or (result#>>'{counterRows,0,arrivalAt}')::numeric<>at_ms+150000 then raise exception 'TEST gather reading';end if;
+    launch_ms:=(result#>>'{counterRows,0,launchAt}')::numeric;
+    result:=public.kingshot_room('adjust',code,jsonb_build_object('id',enemy,'revision',2,'field','march','delta',1));
+    result:=public.kingshot_room('counter',code,jsonb_build_object('op','rebase','id',counter_id,'revision',4));
+    if (result#>>'{counterRows,0,launchAt}')::numeric<>launch_ms then raise exception 'TEST confirmed launch moved';end if;
+    at_ms:=extract(epoch from clock_timestamp())*1000;
+    result:=public.kingshot_room('counter',code,jsonb_build_object('op','observe','id',counter_id,'revision',5,'mode','marching','remaining',9.5,'at',at_ms));
+    if (result#>>'{counterRows,0,arrivalAt}')::numeric<>at_ms+9500 then raise exception 'TEST march reading';end if;
+    result:=public.kingshot_room('counter',code,jsonb_build_object('op','cancel','id',counter_id,'revision',6));
+    if result#>'{counterRows,0,cancelled}'<>'true'::jsonb then raise exception 'TEST cancel';end if;
+    begin perform public.kingshot_room('counter',code,jsonb_build_object('op','observe','id',counter_id,'revision',7,'mode','launch','at',at_ms));raise exception 'TEST cancelled observe';exception when others then if sqlerrm<>'KS_PHASE' then raise;end if;end;
+    -- Manual creation retains a disabled attack-roster entry, and excludes untrusted snapshots.
+    result:=public.kingshot_room('counter',code,jsonb_build_object('op','save','name','Manual retained','prepare',0,'march',20,'enemyId',enemy,'enemyRevision',3,'offset',2,'userId',host,'launchAt',1));
+    manual:=(result#>>'{counterRows,1,leaderId}')::uuid;
+    if (select enabled or user_id is not null from kingshot_private.rally_leaders where room_id=rid and id=manual) then raise exception 'TEST forged owner or enabled';end if;
+    if result#>'{counterRows,1,userId}'<>'null'::jsonb or result#>>'{counterRows,1,name}'<>'Manual retained' then raise exception 'TEST forged snapshot';end if;
+    begin perform public.kingshot_room('counter',code,jsonb_build_object('op','save','name','Too late','prepare',600,'march',30,'enemyId',enemy,'enemyRevision',3,'offset',1));raise exception 'TEST impossible plan';exception when others then if sqlerrm<>'KS_COUNTER_LATE' then raise;end if;end;
+    if exists(select 1 from kingshot_private.rally_leaders where room_id=rid and name='Too late') then raise exception 'TEST failed create leaked';end if;
+    begin perform public.kingshot_room('counter',code,jsonb_build_object('op','save','name','Invalid offset','prepare',0,'march',30,'enemyId',enemy,'enemyRevision',3,'offset',0));raise exception 'TEST zero offset';exception when others then if sqlerrm<>'KS_TIME' then raise;end if;end;
+    result:=public.kingshot_room('stop_enemy',code,jsonb_build_object('id',enemy,'revision',3));
+    if jsonb_array_length(result->'counterRows')<>2 then raise exception 'TEST stopped enemy cleared actual progress';end if;
+    begin perform public.kingshot_room('counter',code,jsonb_build_object('op','rebase','id',counter_id,'revision',7));raise exception 'TEST stopped reference';exception when others then if sqlerrm<>'KS_COUNTER_ENEMY' then raise;end if;end;
+    result:=public.kingshot_room('command',code,jsonb_build_object('revision',result#>'{battle,revision}','mode','hold'));
+    if jsonb_array_length(result->'counterRows')<>0 then raise exception 'TEST old round not cleared';end if;
+    raise exception 'ROLLBACK_COUNTER_FIXTURES';
+  exception when others then if sqlerrm<>'ROLLBACK_COUNTER_FIXTURES' then raise;end if;end;
+  if exists(select 1 from auth.users where id in(host,cmd,member_id)) then raise exception 'TEST fixtures leaked';end if;
+end;$test$;
+select 'PASS: counter permissions, defense isolation, disabled roster reuse, inverse timing, tenths, revisions, no automatic rescheduling, observed progress, explicit rebase, cancellation, retained manual leader, validation and round reset; fixtures rolled back' as result;

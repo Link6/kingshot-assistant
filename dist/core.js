@@ -42,6 +42,52 @@
     if (result.some(r => r.launchAt <= now)) throw new TimingError('tooLate');
     return {target, rows: result.sort((a, b) => a.launchAt - b.launchAt)};
   }
+  function makeCounterRally(leader, enemy, now, options = {}) {
+    if (!enemy || enemy.active===false || !Number.isFinite(enemy.arrivalAt)) throw new TimingError('counterEnemyMissing');
+    const prepareSeconds=parseDuration(leader.prepare),marchSeconds=parseDuration(leader.march,false),offset=parseDuration(options.offset??1,false);
+    if(offset>3600||!Number.isFinite(now))throw new TimingError('invalidTime');
+    const targetAt=enemy.arrivalAt+offset*1000,plannedLaunchAt=targetAt-(prepareSeconds+marchSeconds)*1000;
+    const mode=options.mode||'planned';
+    let launchAt=plannedLaunchAt;
+    if(mode==='planned'){if(launchAt<=now)throw new TimingError('counterTooLate');}
+    else if(mode==='gathering'||mode==='marching'){
+      const remaining=parseDuration(options.remaining);
+      if(remaining>(mode==='gathering'?prepareSeconds:marchSeconds))throw new TimingError('invalidTime');
+      launchAt=now+(remaining-prepareSeconds-(mode==='marching'?marchSeconds:0))*1000;
+    }else throw new TimingError('invalidTime');
+    return {id:options.id||leader.id,leaderId:leader.id,userId:leader.userId||null,name:leader.name.trim(),prepareSeconds,marchSeconds,offset,
+      enemyId:enemy.id,enemyName:enemy.name,enemyAt:enemy.arrivalAt,enemyRecordedAt:enemy.recordedAt,enemyRevision:enemy.revision??0,
+      targetAt,plannedLaunchAt,launchAt,arrivalAt:launchAt+(prepareSeconds+marchSeconds)*1000,confirmed:mode!=='planned',cancelled:false,revision:options.revision??1};
+  }
+  function adjustCounterRally(row,change,now) {
+    if(row.cancelled)throw new TimingError('counterStopped');
+    let launchAt=row.launchAt,confirmed=row.confirmed;
+    if(change.delta!==undefined){if(![-1,-0.1,0.1,1].includes(change.delta))throw new TimingError('invalidTime');launchAt=Math.round(launchAt+change.delta*1000);}
+    else if(change.mode==='launch'){launchAt=now;confirmed=true;}
+    else if(['gathering','marching'].includes(change.mode)){
+      const remaining=parseDuration(change.remaining),gathering=change.mode==='gathering';
+      if(remaining>(gathering?row.prepareSeconds:row.marchSeconds))throw new TimingError('invalidTime');
+      launchAt=now+(remaining-row.prepareSeconds-(gathering?0:row.marchSeconds))*1000;confirmed=true;
+    }else throw new TimingError('invalidTime');
+    return {...row,launchAt,confirmed,arrivalAt:launchAt+(row.prepareSeconds+row.marchSeconds)*1000,revision:row.revision+1};
+  }
+  function counterStatus(row,enemies,now,leaders) {
+    const enemy=enemies.find(e=>e.id===row.enemyId&&e.active!==false),leader=leaders?.find(l=>l.id===row.leaderId);
+    const sourceChanged=!enemy||enemy.arrivalAt!==row.enemyAt||enemy.recordedAt!==row.enemyRecordedAt||(enemy.revision??0)!==row.enemyRevision;
+    let leaderChanged=!!leaders&&!leader;
+    if(leader)try{leaderChanged=parseDuration(leader.prepare)!==row.prepareSeconds||parseDuration(leader.march,false)!==row.marchSeconds;}catch{leaderChanged=true;}
+    const desiredAt=enemy?enemy.arrivalAt+row.offset*1000:row.targetAt,timing=rallyTiming(row,now);
+    const missed=!row.confirmed&&now>row.launchAt+1200;
+    return {...timing,sourceChanged,leaderChanged,desiredAt,drift:(row.arrivalAt-desiredAt)/1000,missed,
+      ready:!row.cancelled&&!sourceChanged&&!leaderChanged&&!missed,
+      nextThreat:enemies.filter(e=>e.active!==false&&e.id!==row.enemyId&&e.arrivalAt>row.enemyAt&&e.arrivalAt<=row.arrivalAt).sort((a,b)=>a.arrivalAt-b.arrivalAt)[0]};
+  }
+  function counterSegments(row) {
+    const departAt=row.launchAt+row.prepareSeconds*1000;
+    return [{kind:'gather',start:row.launchAt,end:departAt},{kind:'march',start:departAt,end:row.arrivalAt},
+      {kind:'launch',start:row.launchAt,end:row.launchAt,point:true},{kind:'counter',start:row.arrivalAt,end:row.arrivalAt,point:true},
+      {kind:'target',start:row.targetAt,end:row.targetAt,point:true}];
+  }
   function formatMinutesSeconds(value) {
     const milliseconds=Math.round(parseDuration(value)*1000),whole=Math.floor(milliseconds/1000);
     const fraction=String(milliseconds%1000).padStart(3,'0').replace(/0+$/,'');
@@ -151,8 +197,8 @@
     return {left:(Math.max(now,start)-now)/span*100,width:(Math.min(now+span,end)-Math.max(now,start))/span*100};
   }
   // Both tracks share wall-clock time; departure is already shifted by own march.
-  function battleTimeline(records, windows, now) {
-    const span = 60000, limit = now + span;
+  function battleTimeline(records, windows, now, span = 60000) {
+    const limit = now + span;
     const clip = (start, end) => timelineRange(start,end,now,span);
     return {
       attacks: records.filter(r=>r.active!==false).sort((a, b) => a.arrivalAt - b.arrivalAt).map(record => ({record,
@@ -202,7 +248,7 @@
     if(timing.stage==='uncertain')return true;
     return !Number.isFinite(confirmedAt)||confirmedAt<(timing.stage==='expired'?timing.end:timing.warnAt);
   }
-  const api = {parseDuration, formatMinutesSeconds, makeRallyPlan, adjustRallyPlan, rallyGaps, rallyTiming, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, reinforcementBoosts, timelineRange, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming, petMarchReview};
+  const api = {makeCounterRally,adjustCounterRally,counterStatus,counterSegments,parseDuration, formatMinutesSeconds, makeRallyPlan, adjustRallyPlan, rallyGaps, rallyTiming, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, reinforcementBoosts, timelineRange, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming, petMarchReview};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KingshotTiming = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

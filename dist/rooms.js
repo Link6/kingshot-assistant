@@ -3,6 +3,7 @@
   const $=id=>document.getElementById(id),I=window.KingshotI18n,K=window.KingshotTiming,B=window.KingshotRoomBridge;
   const UI=window.KingshotBattleUI,t=(k,p)=>I.t(k,p),cfg=window.KingshotRoomConfig,esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const attackTimeline=window.KingshotRoomTimeline.create($('room-attack-timeline'),'attack'),defenseTimeline=window.KingshotRoomTimeline.create($('room-defense-timeline'),'defend');
+  const counterUI=window.KingshotCounterUI.create($('room-counter'),d=>run('counter',{...d,at:Date.now()+offset}));
   let timelineFrame=0;
   const scope=new URL('.',location.href).pathname,storageKey=`kingshot:${scope}:room`,providerKey=storageKey+':discord';
   let client,session=null,allowed=false,room=null,channel=null,busy=false,connected=false,realtimeReady=false,offset=0,bestRtt=Infinity,uncertainty=0,reading=false,refreshTimer,verifiedAt=0,leaderEdit=null,defenseWindows=[],enemyRecords=[],roomEpoch=0,personalPet=null;
@@ -76,6 +77,7 @@
     for(const id of ['room-publish-form','room-leader-manager','room-leader-form','room-enemy-editor','room-enemy-form'])$(id).hidden=!canCommand();
     for(const id of ['room-command','room-publish-form','room-leader-form','room-enemy-form'])$(id).querySelectorAll('input,select,button').forEach(el=>el.disabled=!allowed||!connected||busy||!canCommand());
     for(const id of ['room-orders','room-defense-rows','room-leaders','room-members'])$(id).querySelectorAll('input,select,button').forEach(el=>el.disabled=busy||!allowed||!connected||!canCommand());
+    counterUI.update({rows:room.counterRows||[],leaders:allLeaders(),enemies:room.enemies,editable:canCommand(),online:allowed&&connected&&!busy},Date.now()+offset);
     if($('room-leader-source').value){$('room-leader-name').disabled=true;$('room-leader-march').disabled=true;}
     $('room-enemy-prepare').disabled=!allowed||!connected||busy||!canCommand()||$('room-enemy-mode').value==='marching';
     $('room-save-self').disabled=busy||!allowed||!connected;
@@ -135,7 +137,7 @@
   }
   function updateTimelines(time,boosts){
     const paused=!connected||!allowed?'roomTimelinePaused':room.battle.mode==='hold'?'roomTimelineStandby':'';
-    if(room.battle.mode==='defend')defenseTimeline.update({records:enemyRecords,windows:defenseWindows,boosts,margin:room.battle.margin,confirmed:checked(me()),paused},time);
+    if(room.battle.mode==='defend')defenseTimeline.update({records:enemyRecords,windows:defenseWindows,boosts,counterRows:room.counterRows||[],margin:room.battle.margin,confirmed:checked(me()),paused},time);
     else attackTimeline.update({rows:room.plan?.rows||[],margin:room.battle.margin,me:room.me,paused:paused||(planStale()?'roomTimelineStale':'')},time);
     syncTimelineAnimation();
   }
@@ -160,6 +162,12 @@
     if(room.battle.mode==='hold'){showOrder(t('battleHold'),'—',t('waitCommander'));return;}
     if(!checked(me())){showOrder(t('checkMarchFirst'),'—',t('marchNeedsCheck'));return;}
     if(room.battle.mode==='defend'){
+      counterUI.update({rows:room.counterRows||[],leaders:allLeaders(),enemies:room.enemies,editable:canCommand(),online:allowed&&connected&&!busy},time);
+      const ownCounter=(room.counterRows||[]).find(r=>!r.cancelled&&r.userId===room.me&&r.arrivalAt>time);
+      if(ownCounter){const s=K.counterStatus(ownCounter,room.enemies,time,allLeaders());
+        const key=!s.ready&&!ownCounter.confirmed?'counterNeedsReview':s.stage==='waiting'?'launchCountdown':s.stage==='launch'?'launchNow':s.stage==='gathering'?'prepareRemaining':'marchRemaining';
+        showOrder(t('counterTimeline')+' · '+t(key),!s.ready&&!ownCounter.confirmed?'—':s.stage==='launch'?t('launchNow'):UI.countdown(s.remaining),t('counterOwnInstruction'),K.formatUtc(s.desiredAt),s.ready&&s.stage==='launch');
+        if(s.ready&&!ownCounter.confirmed)B.cue('counter:'+ownCounter.id+':'+ownCounter.launchAt,ownCounter.launchAt,time,ownCounter.launchAt+1200);return;}
       const w=K.nextWindow(defenseWindows,time);
       const rescue=boostAnalyses.find(a=>!a.normal&&a.recommended);
       if(!w&&rescue){const p=rescue.recommended,win=rescue.window;
@@ -239,6 +247,9 @@
     else if(/KS_(ROLE|MEMBER)/.test(msg))error('roomPermission');
     else if(msg.includes('KS_CONFLICT')){error('roomConflict');await refresh();}
     else if(msg.includes('KS_ROOM')&&room){await clearRoom();error('roomGone');}
+    else if(msg.includes('KS_COUNTER_LATE'))error('counterTooLate');
+    else if(msg.includes('KS_COUNTER_ENEMY'))error('counterEnemyMissing');
+    else if(msg.includes('KS_COUNTER_MODE'))error('counterNeedsDefend');
     else if(/KS_(TIME|NAME|CLOCK|PHASE)|invalid input|constraint|row-level/i.test(msg))error('roomInvalid');
     else{online(false);error('roomUnavailable');}
     renderStatus();
@@ -275,7 +286,7 @@
       if(epoch!==roomEpoch)return;
       if(action==='owned'&&!result.roomId){if(!quiet)notice('roomNoOwned');}
       else if(result.left){await clearRoom();notice(action==='close'?'roomClosed':'roomLeft');}
-      else{const first=!room;const recorded=action==='record'?result.enemies.find(e=>data.id?e.id===data.id:e.name===data.name&&Math.abs(e.recordedAt-data.at)<1):null;apply(result);if(action==='leader')resetLeader();if(recorded)$('room-enemy-select').value=recorded.id;if(first)await subscribe();}
+      else{const first=!room;const recorded=action==='record'?result.enemies.find(e=>data.id?e.id===data.id:e.name===data.name&&Math.abs(e.recordedAt-data.at)<1):null;apply(result);if(action==='leader')resetLeader();if(recorded)$('room-enemy-select').value=recorded.id;if(first)await subscribe();return result;}
     }catch(err){
       if(epoch!==roomEpoch)return;
       const msg=String(err?.message||err);
