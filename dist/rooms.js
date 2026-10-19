@@ -16,6 +16,7 @@
   const canCommand=()=>['owner','commander'].includes(role());
   const checked=m=>!!m?.march&&m.marchUpdatedAt>=room.battle.marchCheckAt;
   const modeKey=mode=>mode==='attack'?'battleAttackMode':mode==='defend'?'battleDefend':'battleHold';
+  const allLeaders=()=>[...room.leaders,...(room.disabledLeaders||[])];
   const allEnemies=()=>[...room.enemies,...(room.stoppedEnemies||[])];
   let nicknameAccount=null,nicknameDefault='';
   function fillDiscordNickname(user){
@@ -189,10 +190,10 @@
     $('room-leader-march-hint').hidden=!member;renderStatus();
   }
   function renderLeaders(){
-    const canEdit=role()!=='member';
-    $('room-leaders').innerHTML=room.leaders.length?room.leaders.map(l=>`<div class="room-member"><div><b>${esc(l.name)}</b><small>${l.march==null?t('roomLeaderWaiting'):esc(t('roomLeaderTimes',{prepare:l.prepare,march:l.march}))}</small></div>${canEdit?`<div class="room-leader-actions"><button type="button" class="text-button" data-leader-edit="${esc(l.id)}">${t('roomLeaderEdit')}</button><button type="button" class="text-button subtle" data-leader-remove="${esc(l.id)}">${t('roomLeaderRemove')}</button></div>`:''}</div>`).join(''):`<p class="field-note">${t('roomLeaderEmpty')}</p>`;
+    const canEdit=canCommand(),leaders=allLeaders();
+    $('room-leaders').innerHTML=leaders.length?leaders.map(l=>`<div class="room-member ${l.enabled===false?'leader-disabled':''}"> <div><b>${esc(l.name)}</b><small class="leader-state">${t(l.enabled===false?'leaderDisabled':'leaderEnabled')}</small><small>${l.march==null?t('roomLeaderWaiting'):esc(t('roomLeaderTimes',{prepare:l.prepare,march:l.march}))}</small></div>${canEdit?`<div class="room-leader-actions"><button type="button" class="text-button" data-leader-toggle="${esc(l.id)}" aria-pressed="${l.enabled!==false}" aria-label="${esc(l.name+' · '+t(l.enabled===false?'leaderEnable':'leaderDisable'))}">${t(l.enabled===false?'leaderEnable':'leaderDisable')}</button><button type="button" class="text-button" data-leader-edit="${esc(l.id)}">${t('roomLeaderEdit')}</button><button type="button" class="text-button subtle" data-leader-remove="${esc(l.id)}">${t('roomLeaderRemove')}</button></div>`:''}</div>`).join(''):`<p class="field-note">${t('roomLeaderEmpty')}</p>`;
     const selected=$('room-leader-source').value;
-    $('room-leader-source').innerHTML=`<option value="">${t('roomLeaderManual')}</option>`+room.members.filter(m=>!room.leaders.some(l=>l.userId===m.id&&l.id!==leaderEdit?.id)).map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
+    $('room-leader-source').innerHTML=`<option value="">${t('roomLeaderManual')}</option>`+room.members.filter(m=>!leaders.some(l=>l.userId===m.id&&l.id!==leaderEdit?.id)).map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
     if([...$('room-leader-source').options].some(o=>o.value===selected))$('room-leader-source').value=selected;
     $('room-leader-save').textContent=t(leaderEdit?'roomLeaderSave':'roomLeaderAdd');$('room-leader-cancel').hidden=!leaderEdit;
     leaderSource();
@@ -201,7 +202,7 @@
     leaderEdit=null;$('room-leader-form').reset();if(room)renderLeaders();
   }
   function editLeader(id){
-    const l=room?.leaders.find(l=>l.id===id);if(!l){resetLeader();return;}
+    const l=room&&allLeaders().find(l=>l.id===id);if(!l){resetLeader();return;}
     leaderEdit={id:l.id,revision:l.revision};renderLeaders();
     $('room-leader-source').value=l.userId||'';$('room-leader-name').value=l.name;
     $('room-leader-prepare').value=String(l.prepare);$('room-leader-march').value=l.march==null?'':String(l.march);
@@ -338,9 +339,11 @@
     $('room-leader-source').addEventListener('change',()=>{if(!$('room-leader-source').value){$('room-leader-name').value='';$('room-leader-march').value='';}leaderSource();});
     $('room-leader-cancel').addEventListener('click',resetLeader);
     $('room-leaders').addEventListener('click',e=>{
+      const toggle=e.target.closest('[data-leader-toggle]');
+      if(toggle){const l=allLeaders().find(l=>l.id===toggle.dataset.leaderToggle);if(l)run('leader',{op:'toggle',id:l.id,revision:l.revision,enabled:l.enabled===false});return;}
       const edit=e.target.closest('[data-leader-edit]'),remove=e.target.closest('[data-leader-remove]');
       if(edit)editLeader(edit.dataset.leaderEdit);
-      if(remove){const l=room.leaders.find(l=>l.id===remove.dataset.leaderRemove);if(l)run('leader',{op:'delete',id:l.id,revision:l.revision});}
+      if(remove){const l=allLeaders().find(l=>l.id===remove.dataset.leaderRemove);if(l)run('leader',{op:'delete',id:l.id,revision:l.revision});}
     });
     $('room-leader-form').addEventListener('submit',e=>{
       e.preventDefault();

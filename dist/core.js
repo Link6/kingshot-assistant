@@ -27,8 +27,10 @@
     return n;
   }
   function makeRallyPlan(rows, now, options = {}) {
-    if (!rows.length) throw new TimingError('noLeaders');
-    const parsed = rows.map((r, i) => {
+    const enabled = rows.map((r,index) => ({...r,index})).filter(r => r.enabled !== false);
+    if (!enabled.length) throw new TimingError('noLeaders');
+    const parsed = enabled.map(r => {
+      const i = r.index;
       try { return {...r, name: r.name.trim(), index:i, prepareSeconds: parseDuration(r.prepare), marchSeconds: parseDuration(r.march, false)}; }
       catch (e) { throw new TimingError('rowError', {name:r.name.trim(), index:i, reason:e.code}); }
     });

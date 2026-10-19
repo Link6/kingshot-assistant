@@ -1,6 +1,11 @@
 (function(root){
   "use strict";
   const catalogue = {
+  "leaderEnabled":["已启用","Enabled"],
+  "leaderDisabled":["已停用","Disabled"],
+  "leaderEnable":["启用","Enable"],
+  "leaderDisable":["停用","Disable"],
+  "leaderDisabledHint":["资料已保留，本轮不参与集结；启用后重新生成／发布排程即可加入。","Details retained. Excluded from this rally; enable and generate/publish a new schedule to include this leader."],
   "roomResumeOwned":["找回我创建的房间","Recover my hosted room"],
   "roomNoOwned":["没有找到你创建的有效房间，可以创建新房间。","You do not host an active room. You can create a new one."],
   "roomOwnedRecovered":["已找回你原来创建的房间。可以继续使用，或点击“关闭房间”后再创建。","Your hosted room has been recovered. Continue using it, or close it before creating another."],
@@ -1005,8 +1010,8 @@
     "Enter a duration above zero, such as 35 or 0:35 (up to 7 days)."
   ],
   "noLeaders": [
-    "请先添加车头",
-    "Add a leader first."
+    "请先添加或启用至少一位车头",
+    "Add or enable at least one leader first."
   ],
   "invalidTarget": [
     "请选择完整的到达日期和时间",

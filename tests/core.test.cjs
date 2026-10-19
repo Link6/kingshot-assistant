@@ -28,6 +28,21 @@ test('reject impossible target or incomplete inputs without generating a plan', 
   assert.throws(()=>makeRallyPlan(rows,100000,{target:NaN}));
   assert.throws(()=>makeRallyPlan([{name:'A',prepare:'5:00',march:''}],100000));
 });
+
+test('disabled leaders are retained in the roster but do not affect validation or arrival target', () => {
+  const rows=[{id:'off',name:'Disabled',prepare:'invalid',march:'',enabled:false},{id:'on',name:'Active',prepare:'60',march:'30'}];
+  const plan=makeRallyPlan(rows,100000,{lead:10});
+  assert.deepEqual(plan.rows.map(r=>r.id),['on']);
+  assert.equal(plan.target,200000);
+  assert.equal(plan.rows[0].index,1);
+  assert.equal(rows.length,2);
+  assert.equal(rows[0].enabled,false);
+  assert.throws(()=>makeRallyPlan(rows.map(r=>({...r,enabled:false})),100000),{code:'noLeaders'});
+  assert.throws(()=>makeRallyPlan([...rows,{name:'',prepare:'bad',march:'30'}],100000),e=>e.code==='rowError'&&e.params.index===2);
+  const restored=makeRallyPlan([{...rows[0],enabled:true,prepare:'300',march:'50'},rows[1]],100000);
+  assert.deepEqual(restored.rows.map(r=>r.id),['off','on']);
+  assert.equal(restored.target,460000);
+});
 test('enemy snapshot updates one record only, marching ignores stale preparation', () => {
   const row={id:'a',name:'A',mode:'gathering',prepare:'4:40',march:'35'};
   const first=recordEnemy(row,100000);

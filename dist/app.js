@@ -22,7 +22,7 @@
   function countdown(seconds){const ticks=Math.ceil(Math.max(0,seconds)*10),total=Math.floor(ticks/10),h=Math.floor(total/3600);return(h?`${h}:`:'')+`${String(Math.floor(total/60)%60).padStart(2,'0')}:${String(total%60).padStart(2,'0')}.${ticks%10}`;}
   function duration(seconds){return seconds<60?t('durationS',{s:I.number(seconds)}):t('durationMS',{m:Math.floor(seconds/60),s:I.number(seconds%60)});}
   const rowName=(r,kind='rally')=>r.name||t(kind==='rally'?'leaderName':'enemyName',{n:(r.index??state[kind].findIndex(x=>x.id===r.id))+1});
-  const fresh=(kind,name='')=>({id:uid(),name,prepare:'5:00',march:'',pet:null,petElapsed:'0',...(kind==='guard'?{mode:'gathering'}:{})});
+  const fresh=(kind,name='')=>({id:uid(),name,prepare:'5:00',march:'',pet:null,petElapsed:'0',...(kind==='guard'?{mode:'gathering'}:{enabled:true})});
   function restore(){
     let preferred=navigator.language;
     try{
@@ -31,7 +31,7 @@
       if(saved&&typeof saved==='object'){
         for(const key of ['lead','own','margin'])if(typeof saved[key]==='string')state[key]=saved[key];
         if(typeof saved.sound==='boolean')state.sound=saved.sound;
-        for(const kind of ['rally','guard'])if(Array.isArray(saved[kind]))state[kind]=saved[kind].slice(0,30).filter(r=>r&&typeof r==='object').map(r=>({...fresh(kind),name:String(r.name||'').slice(0,40),prepare:String(r.prepare??'5:00'),march:String(r.march??''),pet:K.restorePetEstimate(r.pet),petElapsed:String(r.petElapsed??'0'),...(kind==='guard'?{mode:r.mode==='marching'?'marching':'gathering',stopped:r.stopped===true}:{})}));
+        for(const kind of ['rally','guard'])if(Array.isArray(saved[kind]))state[kind]=saved[kind].slice(0,30).filter(r=>r&&typeof r==='object').map(r=>({...fresh(kind),name:String(r.name||'').slice(0,40),prepare:String(r.prepare??'5:00'),march:String(r.march??''),pet:K.restorePetEstimate(r.pet),petElapsed:String(r.petElapsed??'0'),...(kind==='guard'?{mode:r.mode==='marching'?'marching':'gathering',stopped:r.stopped===true}:{enabled:r.enabled!==false})}));
         try{K.parseDuration(state.own,false);validOwn=state.own;}catch{state.own=validOwn;}
         try{K.parseDuration(state.margin);validMargin=state.margin;}catch{state.margin=validMargin;}
       }
@@ -44,13 +44,13 @@
   function renderPetControls(r,kind){return `<section class="pet-timer" id="pet-panel-${r.id}"><div class="pet-heading"><b>${t(kind==='rally'?'rallyPetTitle':'petTitle')}</b><span id="pet-status-${r.id}"></span></div><div class="pet-controls"><label>${t('petElapsed')}<input data-pet-elapsed type="number" min="0" max="120" step="any" inputmode="decimal" value="${esc(r.petElapsed)}"></label><button class="button secondary" data-pet-start>${t(r.pet?'petApply':'petStart')}</button></div><p class="pet-help">${t('petHelp')}</p><div class="form-error" id="pet-error-${r.id}" role="alert" hidden></div><div id="pet-live-${r.id}" hidden><div class="pet-reading"><span>${t('petRemaining')}</span><strong id="pet-time-${r.id}"></strong><button class="text-button subtle" data-pet-stop>${t('petStop')}</button></div><p id="pet-end-${r.id}"></p><p class="pet-warning" id="pet-warning-${r.id}" hidden></p></div></section>`;}
   function renderRallyRows(){
     txt('rally-count',state.rally.length);$('rally-empty').hidden=!!state.rally.length;$('add-rally').disabled=state.rally.length>=30;
-    $('rally-rows').innerHTML=state.rally.map((r,i)=>`<div class="person-row" data-id="${r.id}"><div class="row-title"><span class="row-number">${String(i+1).padStart(2,'0')}</span><input data-field="name" aria-label="${esc(t('leaderName',{n:i+1})+' '+t('name'))}" placeholder="${esc(t('leaderPlaceholder'))}" value="${esc(r.name)}" maxlength="40"><button class="delete-row" data-delete aria-label="${esc(t('deleteLeader',{n:i+1}))}">×</button></div><div class="field-grid"><label>${t('prepare')}<span class="input-unit"><input data-field="prepare" value="${esc(r.prepare)}" placeholder="5:00"><span>${t('time')}</span></span></label><label>${t('march')}<span class="input-unit"><input data-field="march" value="${esc(r.march)}" placeholder="${t('example35')}"><span>${t('seconds')}</span></span></label></div><div class="row-hint" id="rally-hint-${r.id}"></div>${renderPetControls(r,'rally')}</div>`).join('');
+    $('rally-rows').innerHTML=state.rally.map((r,i)=>`<div class="person-row ${r.enabled===false?'leader-disabled':''}" data-id="${r.id}"><div class="row-title"><span class="row-number">${String(i+1).padStart(2,'0')}</span><input data-field="name" aria-label="${esc(t('leaderName',{n:i+1})+' '+t('name'))}" placeholder="${esc(t('leaderPlaceholder'))}" value="${esc(r.name)}" maxlength="40"><button class="delete-row" data-delete aria-label="${esc(t('deleteLeader',{n:i+1}))}">×</button></div><div class="field-grid"><label>${t('prepare')}<span class="input-unit"><input data-field="prepare" value="${esc(r.prepare)}" placeholder="5:00"><span>${t('time')}</span></span></label><label>${t('march')}<span class="input-unit"><input data-field="march" value="${esc(r.march)}" placeholder="${t('example35')}"><span>${t('seconds')}</span></span></label></div><div class="leader-toggle-bar"><span class="pill neutral">${t(r.enabled===false?'leaderDisabled':'leaderEnabled')}</span><button type="button" class="text-button" data-toggle-leader aria-pressed="${r.enabled!==false}" aria-label="${esc(rowName(r)+' · '+t(r.enabled===false?'leaderEnable':'leaderDisable'))}">${t(r.enabled===false?'leaderEnable':'leaderDisable')}</button></div><div class="row-hint" id="rally-hint-${r.id}"></div>${renderPetControls(r,'rally')}</div>`).join('');
     state.rally.forEach(updateRallyHint);
     updatePets(now());
     for(const [id,{err,suffix}] of errors)if(id.startsWith('pet-error-'))showError(id,err,suffix);
 
   }
-  function updateRallyHint(r){try{txt(`rally-hint-${r.id}`,t('total',{time:duration(K.parseDuration(r.prepare)+K.parseDuration(r.march,false))}));}catch{txt(`rally-hint-${r.id}`,t('totalHint'));}}
+  function updateRallyHint(r){if(r.enabled===false){txt(`rally-hint-${r.id}`,t('leaderDisabledHint'));return;}try{txt(`rally-hint-${r.id}`,t('total',{time:duration(K.parseDuration(r.prepare)+K.parseDuration(r.march,false))}));}catch{txt(`rally-hint-${r.id}`,t('totalHint'));}}
   function updatePets(time){
     let changed=false;
     for(const kind of ['rally','guard']){
@@ -68,7 +68,7 @@
           txt(`pet-warning-${r.id}`,timing.needsReview?t(timing.stage==='uncertain'?'petUncertain':timing.stage==='expired'?'petExpired':'petSoon'):'');
         }
       }
-      if(!timing?.needsReview)continue;
+      if(!timing?.needsReview||kind==='rally'&&r.enabled===false)continue;
       warnings.push(rowName(r,kind));
       if(timing.stage==='uncertain'&&!r.pet.clockChanged){r.pet.clockChanged=true;changed=true;}
       if(!r.pet.alerted){r.pet.alerted=true;changed=true;beep(false);}
@@ -212,7 +212,7 @@
     if(!desktop)return;const events=[];
     if(state.sound&&state.tab==='rally'&&plan&&!roomActive)for(const r of plan.rows)events.push({id:`r:${r.launchAt}`,at:r.launchAt,expiresAt:r.launchAt+1200,title:t('launchNow'),body:rowName(r)});
     if(state.sound&&state.tab==='guard'&&!roomActive)for(const w of windows.filter(w=>w.usable))events.push({id:`g:${w.id}`,at:w.midpoint,expiresAt:w.end,title:t('sendNow'),body:t('between',{before:rowName(w.before,'guard'),after:rowName(w.after,'guard')})});
-    if(state.sound&&!roomActive)for(const kind of ['rally','guard'])for(const r of state[kind]){const pet=K.petTiming(r.pet,now());if(pet&&pet.stage!=='uncertain')events.push({id:`pet:${r.id}:${r.pet.observedAt}:${r.pet.startedAt}`,at:pet.warnAt,expiresAt:pet.end,title:t(kind==='rally'?'rallyPetReminderTitle':'petReminderTitle'),body:t(kind==='rally'?'rallyPetReminder':'petReminder',{names:rowName(r,kind)})});}
+    if(state.sound&&!roomActive)for(const kind of ['rally','guard'])for(const r of state[kind]){if(kind==='rally'&&r.enabled===false)continue;const pet=K.petTiming(r.pet,now());if(pet&&pet.stage!=='uncertain')events.push({id:`pet:${r.id}:${r.pet.observedAt}:${r.pet.startedAt}`,at:pet.warnAt,expiresAt:pet.end,title:t(kind==='rally'?'rallyPetReminderTitle':'petReminderTitle'),body:t(kind==='rally'?'rallyPetReminder':'petReminder',{names:rowName(r,kind)})});}
     desktop.setAlarms(events).catch(()=>{});
   }
   function invalidateSession(clockChanged=false){
@@ -245,6 +245,12 @@
     $(`${kind}-rows`).addEventListener('input',e=>{if(!e.target.matches('[data-pet-elapsed]'))return;const r=state[kind].find(r=>r.id===e.target.closest('[data-id]').dataset.id);r.petElapsed=e.target.value;save();});
     $(`${kind}-rows`).addEventListener('click',e=>{
       const holder=e.target.closest('[data-id]');if(!holder)return;const id=holder.dataset.id,r=state[kind].find(r=>r.id===id);
+      if(kind==='rally'&&e.target.closest('[data-toggle-leader]')){
+        r.enabled=r.enabled===false;
+        if(!r.enabled&&plan){plan={...plan,rows:plan.rows.filter(row=>row.id!==id)};if(!plan.rows.length){plan=null;$('stop-rally').disabled=true;$('rally-dirty').hidden=true;}renderRallyTimeline();}
+        else dirtyPlan();
+        save();renderRallyRows();updateTimers();syncDesktopAlarms();return;
+      }
       if(e.target.closest('[data-delete]')){if((records.has(id)||r.pet||(kind==='rally'&&plan))&&!confirm(t('deleteConfirm')))return;state[kind]=state[kind].filter(r=>r.id!==id);errors.delete(`guard-error-${id}`);errors.delete(`pet-error-${id}`);if(kind==='rally'){dirtyPlan();renderRallyRows();}else{records.delete(id);renderGuardRows();computeGuard();}save();syncDesktopAlarms();return;}
       if(e.target.closest('[data-pet-start]')){try{r.pet=K.makePetEstimate(r.petElapsed,now());showError(`pet-error-${id}`);save();if(kind==='rally')renderRallyRows();else renderGuardRows();syncDesktopAlarms();toast('petStarted');}catch(err){showError(`pet-error-${id}`,err);}return;}
       if(e.target.closest('[data-pet-stop]')){r.pet=null;r.petElapsed='0';showError(`pet-error-${id}`);save();if(kind==='rally')renderRallyRows();else renderGuardRows();syncDesktopAlarms();return;}
@@ -254,7 +260,7 @@
       if(e.target.closest('[data-record]')){const recordedAt=now();try{const snapshot=K.recordEnemy(r,recordedAt);snapshot.index=state.guard.indexOf(r);snapshot.draft=battleDraft(r);records.set(id,snapshot);r.stopped=false;save();showError(`guard-error-${id}`);updateGuardRow(r);clearNotice();computeGuard();toast('recordToast',{name:rowName(snapshot,'guard'),time:clock(snapshot.arrivalAt,true)});}catch(err){showError(`guard-error-${id}`,err,records.has(id)?'oldRecord':null);}}
     });
   }
-  for(const kind of ['rally','guard'])$(kind==='rally'?'rally-pet-update-march':'pet-update-march').addEventListener('click',async()=>{const r=state[kind].find(r=>K.petTiming(r.pet,now())?.needsReview);if(!r)return;state.focus=false;document.body.classList.remove('focus-mode');syncControls();setTab(kind);if(desktop)try{await desktop.setCompact(false);}catch{}const panel=$(`pet-panel-${r.id}`);panel.closest('[data-id]').querySelector('[data-field="march"]').focus();panel.closest('[data-id]').scrollIntoView({block:'center',behavior:'smooth'});});
+  for(const kind of ['rally','guard'])$(kind==='rally'?'rally-pet-update-march':'pet-update-march').addEventListener('click',async()=>{const r=state[kind].find(r=>(kind!=='rally'||r.enabled!==false)&&K.petTiming(r.pet,now())?.needsReview);if(!r)return;state.focus=false;document.body.classList.remove('focus-mode');syncControls();setTab(kind);if(desktop)try{await desktop.setCompact(false);}catch{}const panel=$(`pet-panel-${r.id}`);panel.closest('[data-id]').querySelector('[data-field="march"]').focus();panel.closest('[data-id]').scrollIntoView({block:'center',behavior:'smooth'});});
   $('rally-lead').addEventListener('input',()=>{state.lead=$('rally-lead').value;dirtyPlan();save();});
   $('rally-target').addEventListener('input',()=>{state.target=$('rally-target').value;dirtyPlan();});
   $('copy-rally').addEventListener('click',async()=>{
