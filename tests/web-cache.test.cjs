@@ -27,7 +27,7 @@ function worker({offline=false,status=200,staleHtml=false}={}){
 test('HTML and precache reference the same content-addressed scripts and stylesheet',()=>{
   const {assets}=prepareAssets({check:true});
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
-  assert.equal(assets.length,5);
+  assert.equal(assets.length,8);
   for(const asset of assets){
     const match=asset.match(/^\.\/assets\/(\w+)-([a-f0-9]{16})\.(js|css)$/);assert.ok(match);
     const [,base,hash,ext]=match;
@@ -37,6 +37,12 @@ test('HTML and precache reference the same content-addressed scripts and stylesh
     assert.ok(html.includes('"'+asset.slice(2)+'"'));assert.ok(source.includes("'"+asset+"'"));
   }
   assert.doesNotMatch(html,/(?:src|href)="(?:app|i18n|install|core)\.js"|href="styles\.css"/);
+});
+
+test('every generated browser script compiles before deployment',()=>{
+  for(const asset of prepareAssets({check:true}).assets.filter(p=>p.endsWith('.js'))){
+    assert.doesNotThrow(()=>new vm.Script(fs.readFileSync(path.join(root,asset),'utf8'),{filename:asset}));
+  }
 });
 
 test('installation bypasses the HTTP cache for every file in the offline snapshot',async()=>{

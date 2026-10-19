@@ -12,6 +12,7 @@
   const records=new Map(), errors=new Map(), fired=new Set();
   let battleNodes={attacks:[],windows:[]};
   let battleFrame=0,battleTrackWidth=0;
+  let sharedRoom=null,roomBackup=null,roomOnline=false,roomAction=null;
   const now=()=>Date.now();
   function txt(id,value){const el=$(id);if(el&&el.textContent!==String(value))el.textContent=value;}
   function toast(key,params){txt('toast',t(key,params));$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,3600);}
@@ -37,7 +38,7 @@
     }catch{}
     I.setLanguage(preferred);
   }
-  function save(){try{const {lead,own,margin,sound,rally,guard}=state;localStorage.setItem(STORAGE,JSON.stringify({lead,own,margin,sound,rally,guard}));localStorage.setItem(LANGUAGE,I.language);}catch{if(!storageWarning){storageWarning=true;toast('storageUnavailable');}}}
+  function save(){try{const {lead,own,margin,sound}=state;const {rally,guard}=roomBackup||state;localStorage.setItem(STORAGE,JSON.stringify({lead,own,margin,sound,rally,guard}));localStorage.setItem(LANGUAGE,I.language);}catch{if(!storageWarning){storageWarning=true;toast('storageUnavailable');}}}
   function showResult(kind){const el=$(`${kind}-hero`),b=el.getBoundingClientRect();if(b.top<68||b.bottom>innerHeight)el.scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}
   function dirtyPlan(){if(plan)$('rally-dirty').hidden=false;}
   function renderPetControls(r,kind){return `<section class="pet-timer" id="pet-panel-${r.id}"><div class="pet-heading"><b>${t(kind==='rally'?'rallyPetTitle':'petTitle')}</b><span id="pet-status-${r.id}"></span></div><div class="pet-controls"><label>${t('petElapsed')}<input data-pet-elapsed type="number" min="0" max="120" step="any" inputmode="decimal" value="${esc(r.petElapsed)}"></label><button class="button secondary" data-pet-start>${t(r.pet?'petApply':'petStart')}</button></div><p class="pet-help">${t('petHelp')}</p><div class="form-error" id="pet-error-${r.id}" role="alert" hidden></div><div id="pet-live-${r.id}" hidden><div class="pet-reading"><span>${t('petRemaining')}</span><strong id="pet-time-${r.id}"></strong><button class="text-button subtle" data-pet-stop>${t('petStop')}</button></div><p id="pet-end-${r.id}"></p><p class="pet-warning" id="pet-warning-${r.id}" hidden></p></div></section>`;}
@@ -47,6 +48,7 @@
     state.rally.forEach(updateRallyHint);
     updatePets(now());
     for(const [id,{err,suffix}] of errors)if(id.startsWith('pet-error-'))showError(id,err,suffix);
+    lockRoomControls();
   }
   function updateRallyHint(r){try{txt(`rally-hint-${r.id}`,t('total',{time:duration(K.parseDuration(r.prepare)+K.parseDuration(r.march,false))}));}catch{txt(`rally-hint-${r.id}`,t('totalHint'));}}
   function updatePets(time){
@@ -89,6 +91,7 @@
     });
     updatePets(now());
     for(const [id,{err,suffix}] of errors)if(id.startsWith('guard-error-')||id.startsWith('pet-error-'))showError(id,err,suffix);
+    lockRoomControls();
   }
   function updateGuardRow(r){
     const rec=records.get(r.id),edited=rec&&rec.draft!==battleDraft(r),status=$(`record-status-${r.id}`);
@@ -107,7 +110,7 @@
     txt(`enemy-prepare-${rec.id}`,countdown(live.prepare));
     txt(`enemy-march-label-${rec.id}`,t(live.stage==='gathering'?'marchFull':'marchRemaining'));
     txt(`enemy-march-${rec.id}`,countdown(live.march));
-    $(`enemy-live-${rec.id}`).querySelectorAll('[data-adjust="prepare"]').forEach(button=>button.disabled=live.stage!=='gathering');
+    $(`enemy-live-${rec.id}`).querySelectorAll('[data-adjust="prepare"]').forEach(button=>button.disabled=live.stage!=='gathering'||!!sharedRoom&&(!roomOnline||sharedRoom.members.find(m=>m.id===sharedRoom.me)?.role==='member'));
   }
   function renderRallyTimeline(){
     $('rally-share-text').hidden=!plan;
@@ -175,23 +178,27 @@
       if(next){const d=(next.launchAt-time)/1000,names=plan.rows.filter(r=>Math.abs(r.launchAt-next.launchAt)<1).map(r=>rowName(r)).join(' / ');hero('rally',{state:t(d<=0?'launchNow':d<=3?'launchSoon':'planActive'),name:t('nextGroup',{names}),value:d<=0?t('launch'):countdown(d),instruction:d<=0?t('launchInstruction'):t('launchAt',{time:K.formatUtc(next.launchAt)}),go:d<=0,soon:d>0&&d<=3});}
       else if(time<plan.target)hero('rally',{state:t('allLaunched'),name:t('arrivalIn'),value:countdown((plan.target-time)/1000),instruction:t('checkLaunched')});
       else hero('rally',{state:t('roundOver'),name:t('arrivalReached'),value:t('arrived'),instruction:t('newPlan'),muted:true});
-      for(const r of plan.rows){const d=(r.launchAt-time)/1000,row=$(`launch-row-${r.id}`);row?.classList.toggle('past',d< -1.2);row?.classList.toggle('active',next?.launchAt===r.launchAt);txt(`launch-timer-${r.id}`,d>0?t('launchIn',{time:countdown(d)}):t('launchPassed'));if(state.tab==='rally')alertAt(`rally:${plan.target}:${r.launchAt}`,r.launchAt,time,r.launchAt+1200);}
+      for(const r of plan.rows){const d=(r.launchAt-time)/1000,row=$(`launch-row-${r.id}`);row?.classList.toggle('past',d< -1.2);row?.classList.toggle('active',next?.launchAt===r.launchAt);txt(`launch-timer-${r.id}`,d>0?t('launchIn',{time:countdown(d)}):t('launchPassed'));if(state.tab==='rally'&&(!sharedRoom||roomOnline))alertAt(`rally:${plan.target}:${r.launchAt}`,r.launchAt,time,r.launchAt+1200);}
     }else{hero('rally',{state:t('waitingPlan'),name:t('readyTogether'),value:'--:--',instruction:t('generateHint'),muted:true});txt('rally-arrival',t('notScheduled'));}
     const w=K.nextWindow(windows,time);
     $('guard-hero').classList.toggle('narrow-window',!!w?.narrow);
     $('guard-warning').hidden=!w?.narrow;
     txt('guard-warning',w?.narrow?'⚠ '+t('narrowGap')+' · '+t('hospitalWarning'):'');
-    if(w){const d=(w.midpoint-time)/1000,go=time>=w.midpoint;hero('guard',{state:t(go?'sendNow':time>=w.start?'sendOpen':d<=3?'sendSoon':'waitingSend'),name:t('between',{before:rowName(w.before,'guard'),after:rowName(w.after,'guard')}),value:go?t('sendNow'):countdown(d),instruction:go?t('sendLeft',{time:countdown((w.end-time)/1000)}):t('sendAt',{time:clock(w.midpoint,true)}),go,soon:d>0&&d<=3});txt('guard-departure',`${clock(w.start,true)} – ${clock(w.end,true)}`);txt('guard-width',duration(w.width));if(state.tab==='guard')alertAt(`guard:${w.id}`,w.midpoint,time,w.end);}
+    if(w){const d=(w.midpoint-time)/1000,go=time>=w.midpoint;hero('guard',{state:t(go?'sendNow':time>=w.start?'sendOpen':d<=3?'sendSoon':'waitingSend'),name:t('between',{before:rowName(w.before,'guard'),after:rowName(w.after,'guard')}),value:go?t('sendNow'):countdown(d),instruction:go?t('sendLeft',{time:countdown((w.end-time)/1000)}):t('sendAt',{time:clock(w.midpoint,true)}),go,soon:d>0&&d<=3});txt('guard-departure',`${clock(w.start,true)} – ${clock(w.end,true)}`);txt('guard-width',duration(w.width));if(state.tab==='guard'&&(!sharedRoom||roomOnline))alertAt(`guard:${w.id}`,w.midpoint,time,w.end);}
     else{let instruction='twoNeeded',name='waitingEnemy',status='waitingRecord';if(records.size===1){name='needAnother';instruction='needAnotherHint';}else if(records.size>=2){status='noWindow';if(windows.some(w=>w.usable)){name='missed';instruction='missedHint';}else{name='gapShort';instruction='gapShortHint';}}hero('guard',{state:t(status),name:t(name),value:'--:--',instruction:t(instruction),muted:true});txt('guard-departure',t('noTime'));txt('guard-width','—');}
     for(const r of records.values()){const d=(r.arrivalAt-time)/1000;txt(`attack-timer-${r.id}`,d>0?t('attackIn',{time:countdown(d)}):t('attackPassed'));$(`attack-row-${r.id}`)?.classList.toggle('past',d<=0);updateEnemyClock(r,time);}
     windows.forEach((w,i)=>$(`window-${i}`)?.classList.toggle('expired',w.end<=time));
+    for(const kind of ['rally','guard']){
+      const stale=!!sharedRoom&&!roomOnline;$(`${kind}-hero`).classList.toggle('room-stale',stale);
+      if(stale){txt(`${kind}-instruction`,t('roomOffline'));txt(`${kind}-state`,t('roomOfflineShort'));}
+    }
     if(state.tab==='guard')updateBattleTimeline(time);
     syncBattleAnimation();
   }
   function syncDesktopAlarms(){
     if(!desktop)return;const events=[];
-    if(state.sound&&state.tab==='rally'&&plan)for(const r of plan.rows)events.push({id:`r:${r.launchAt}`,at:r.launchAt,expiresAt:r.launchAt+1200,title:t('launchNow'),body:rowName(r)});
-    if(state.sound&&state.tab==='guard')for(const w of windows.filter(w=>w.usable))events.push({id:`g:${w.id}`,at:w.midpoint,expiresAt:w.end,title:t('sendNow'),body:t('between',{before:rowName(w.before,'guard'),after:rowName(w.after,'guard')})});
+    if(state.sound&&state.tab==='rally'&&plan&&(!sharedRoom||roomOnline))for(const r of plan.rows)events.push({id:`r:${r.launchAt}`,at:r.launchAt,expiresAt:r.launchAt+1200,title:t('launchNow'),body:rowName(r)});
+    if(state.sound&&state.tab==='guard'&&(!sharedRoom||roomOnline))for(const w of windows.filter(w=>w.usable))events.push({id:`g:${w.id}`,at:w.midpoint,expiresAt:w.end,title:t('sendNow'),body:t('between',{before:rowName(w.before,'guard'),after:rowName(w.after,'guard')})});
     if(state.sound)for(const kind of ['rally','guard'])for(const r of state[kind]){const pet=K.petTiming(r.pet,now());if(pet&&pet.stage!=='uncertain')events.push({id:`pet:${r.id}:${r.pet.observedAt}:${r.pet.startedAt}`,at:pet.warnAt,expiresAt:pet.end,title:t(kind==='rally'?'rallyPetReminderTitle':'petReminderTitle'),body:t(kind==='rally'?'rallyPetReminder':'petReminder',{names:rowName(r,kind)})});}
     desktop.setAlarms(events).catch(()=>{});
   }
@@ -200,9 +207,49 @@
     if(!plan&&!records.size){updateTimers();syncDesktopAlarms();return;}
     plan=null;records.clear();windows=[];fired.clear();$('rally-dirty').hidden=true;$('stop-rally').disabled=true;sessionInvalid=true;txt('session-notice',t('sleepReset'));$('session-notice').hidden=false;
     renderRallyTimeline();renderGuardRows();renderGuardTimeline();updateTimers();syncDesktopAlarms();
+    if(sharedRoom){if(roomBackup){roomBackup.plan=null;roomBackup.records=[];}roomOnline=false;lockRoomControls();window.dispatchEvent(new Event('kingshot:room-resync'));}
   }
   function clearNotice(){sessionInvalid=false;$('session-notice').hidden=true;}
-  function syncControls(){txt('sound-toggle',t(state.sound?'soundOn':'soundOff'));$('sound-toggle').setAttribute('aria-pressed',String(state.sound));txt('focus-toggle',t(state.focus?'edit':'focus'));txt('pin-toggle',t(state.pinned?'pinOn':'pinOff'));$('pin-toggle').setAttribute('aria-pressed',String(state.pinned));$('language-select').value=I.language;txt('breadcrumb-current',t(state.tab));txt('guard-settings-state',t(settingsValid?'applied':'notApplied'));if(desktop)document.querySelector('.foreground-note').textContent=t('desktopHint');}
+  function syncControls(){txt('sound-toggle',t(state.sound?'soundOn':'soundOff'));$('sound-toggle').setAttribute('aria-pressed',String(state.sound));txt('focus-toggle',t(state.focus?'edit':'focus'));txt('pin-toggle',t(state.pinned?'pinOn':'pinOff'));$('pin-toggle').setAttribute('aria-pressed',String(state.pinned));$('language-select').value=I.language;txt('breadcrumb-current',t(state.tab));txt('guard-settings-state',t(settingsValid?'applied':'notApplied'));if(desktop)document.querySelector('.foreground-note').textContent=t('desktopHint');lockRoomControls();}
+  function lockRoomControls(){
+    const active=!!sharedRoom,canEdit=active&&roomOnline&&sharedRoom.members.find(m=>m.id===sharedRoom.me)?.role!=='member';
+    for(const kind of ['rally','guard']){
+      for(const id of [`add-${kind}`,`first-${kind}`,`${kind}-example`])if($(id))$(id).disabled=active||(id===`add-${kind}`&&state[kind].length>=30);
+      $(`${kind}-rows`)?.querySelectorAll('[data-field]').forEach(el=>el.readOnly=active);
+      $(`${kind}-rows`)?.querySelectorAll('[data-delete],[data-mode],[data-record],[data-pet-start],[data-pet-stop]').forEach(el=>el.disabled=active&&!(kind==='guard'&&el.hasAttribute('data-delete')&&canEdit));
+    }
+    if(active)$('guard-rows').querySelectorAll('[data-adjust]').forEach(el=>{const rec=records.get(el.closest('[data-id]').dataset.id);el.disabled=!canEdit||!rec||(el.dataset.adjust==='prepare'&&K.enemyCountdown(rec,now()).stage!=='gathering');});
+    $('clear-page').disabled=active;
+  }
+  window.KingshotRoomBridge={
+    setAction(handler){roomAction=handler;},
+    setOnline(online){roomOnline=online;lockRoomControls();updateTimers();syncDesktopAlarms();},
+    apply(snapshot,offset,online=true){
+      if(!roomBackup){roomBackup={rally:state.rally,guard:state.guard,plan,records:[...records],own:state.own};plan=null;$('stop-rally').disabled=true;$('rally-dirty').hidden=true;renderRallyTimeline();}
+      const previous=sharedRoom;sharedRoom=snapshot;roomOnline=online;
+      const enemiesChanged=JSON.stringify(previous?.enemies)!==JSON.stringify(snapshot.enemies);
+      const membersChanged=JSON.stringify(previous?.members)!==JSON.stringify(snapshot.members);
+      if(enemiesChanged||records.size!==snapshot.enemies.length){
+        state.guard=snapshot.enemies.map(e=>({...fresh('guard'),id:e.id,name:e.name,mode:e.mode,prepare:String(e.prepare),march:String(e.march)}));
+        records.clear();snapshot.enemies.forEach((e,index)=>records.set(e.id,{id:e.id,name:e.name,mode:e.mode,index,marchSeconds:Number(e.march),recordedAt:e.recordedAt-offset,departAt:e.departAt-offset,arrivalAt:e.arrivalAt-offset,draft:battleDraft(state.guard[index])}));
+        renderGuardRows();computeGuard();
+      }
+      if(membersChanged){state.rally=snapshot.members.filter(m=>m.march>0).slice(0,30).map(m=>({...fresh('rally'),id:m.id,name:m.name,prepare:String(m.prepare),march:String(m.march)}));dirtyPlan();renderRallyRows();}
+      clearNotice();lockRoomControls();updateTimers();syncDesktopAlarms();
+    },
+    clear(){
+      sharedRoom=null;roomOnline=false;
+      if(roomBackup){state.rally=roomBackup.rally;state.guard=roomBackup.guard;plan=roomBackup.plan;records.clear();roomBackup.records.forEach(([id,r])=>records.set(id,r));roomBackup=null;}
+      $('stop-rally').disabled=!plan;renderRallyRows();renderGuardRows();renderRallyTimeline();computeGuard();syncControls();save();
+    }
+  };
+  $('guard-rows').addEventListener('click',e=>{
+    if(!sharedRoom)return;const button=e.target.closest('[data-adjust],[data-delete]');if(!button)return;
+    e.preventDefault();e.stopImmediatePropagation();if(!roomOnline)return;
+    const id=button.closest('[data-id]').dataset.id,enemy=sharedRoom.enemies.find(r=>r.id===id);
+    if(!enemy)return;if(button.hasAttribute('data-delete')&&!confirm(t('deleteConfirm')))return;
+    roomAction?.(button.hasAttribute('data-delete')?'delete':'adjust',{id,revision:enemy.revision,field:button.dataset.adjust,delta:Number(button.dataset.delta)});
+  },true);
   function changeLanguage(value){I.setLanguage(value);I.apply();syncControls();renderRallyRows();renderGuardRows();renderRallyTimeline();renderGuardTimeline();for(const [id,{err,suffix}]of errors)showError(id,err,suffix);if(sessionInvalid)txt('session-notice',t('sleepReset'));$('toast').hidden=true;updateTimers();syncDesktopAlarms();save();}
   function applySettings(){state.own=$('own-march').value;state.margin=$('guard-margin').value;try{K.parseDuration(state.own,false);K.parseDuration(state.margin);validOwn=state.own;validMargin=state.margin;settingsValid=true;showError('guard-settings-error');computeGuard();}catch(e){settingsValid=false;showError('guard-settings-error',e,'oldSettings');}syncControls();save();}
   document.addEventListener('click',initAudio,{capture:true});

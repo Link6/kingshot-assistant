@@ -4,13 +4,15 @@
 
 [Open the app](https://link6.github.io/kingshot-assistant/) · [Download desktop app](https://github.com/Link6/kingshot-assistant/releases/latest) · [Desktop builds](https://github.com/Link6/kingshot-assistant/actions/workflows/desktop.yml)
 
-A rally coordination and castle reinforcement timing assistant for Kingshot, with Chinese and English interfaces and an Electron desktop app. No account is required. Calculations run on your device, and common inputs are saved locally.
+A rally coordination and castle reinforcement timing assistant for Kingshot, with Chinese and English interfaces and an Electron desktop app. Local timing needs no account. Calculations run on your device, and common inputs are saved locally. Room collaboration requires Discord membership verification; explicitly shared records and march times are stored in Supabase and synchronized with room members.
 
 Scripts and styles use content-hashed filenames so updated HTML cannot reuse stale assets. Normal online refreshes prefer the latest HTML; offline use restores a complete cached build. Updates do not automatically reload active timers. Run `npm run prepare:web` after editing source files; local serving, tests, desktop packaging, and Pages deployment also prepare assets automatically.
 
 This project is licensed under the [MIT License](LICENSE). Copyright © 2026 Link6.
 
 ## Features
+
+- **Room collaboration:** Discord membership verification gates access to 8-character rooms. Hosts appoint commanders; enemy records, fine adjustments and teammates' march times update across the room. Server-side room, expiry and update limits protect the free-tier quota. Countdown animation stays local. See [setup and permissions](supabase/README.md).
 
 - **Rally coordination:** Calculate when each leader should start a rally so multiple rallies reach the same target together. Use an automatic schedule or set a shared arrival time.
 - **UTC clock and schedule:** View the current UTC time and copy a compact list of leader names and UTC rally start times, sorted by launch order, to share with your team.

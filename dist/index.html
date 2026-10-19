@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://apthksvwesjebpguprvj.supabase.co wss://apthksvwesjebpguprvj.supabase.co; object-src 'none'; base-uri 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#11171b">
   <meta name="description" content="让每一支集结准时抵达。Kingshot 集结同步与王城补兵计时助手。" data-i18n-content="description">
@@ -13,11 +13,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Kingshot">
   <!-- Select the installation language before the browser fetches a manifest. -->
-  <script src="assets/i18n-146c6975f329bbd7.js"></script>
-  <link rel="stylesheet" href="assets/styles-58aab4648c570d15.css">
+  <script src="assets/i18n-ab2184fe2c9b5d5e.js"></script>
+  <link rel="stylesheet" href="assets/styles-aedf2894a0c2c78d.css">
   <script src="assets/install-ff9ccd4e38b61f8b.js" defer></script>
   <script src="assets/core-66de00e4c70ebcf3.js" defer></script>
-  <script src="assets/app-8eb6867ce10c1be2.js" defer></script>
+  <script src="assets/supabase-ee3be8de192b97cb.js" defer></script>
+  <script src="assets/roomconfig-f4b9c6854684fe8f.js" defer></script>
+  <script src="assets/app-add63cabf681fe4d.js" defer></script>
+  <script src="assets/rooms-1d9859420b84d998.js" defer></script>
 </head>
 <body>
   <aside class="sidebar">
@@ -40,6 +43,23 @@
         <p id="install-help" class="install-help" hidden></p>
       </section>
       <div class="utc-strip"><div><span data-i18n="utcNow">当前 UTC 时间</span><time id="utc-clock">—</time></div><small data-i18n="utcDevice">根据设备时钟换算</small></div>
+      <details id="room-panel" class="panel room-panel">
+        <summary><span data-i18n="roomTitle">房间协作</span><span id="room-summary" class="pill neutral"></span></summary>
+        <div class="room-body">
+          <p class="field-note" data-i18n="roomIntro">仅限指定 Discord 服务器成员。房主可指定指挥，共同维护敌方；队友更新自己的行军时间。</p>
+          <div id="room-error" class="form-error" role="alert" hidden></div>
+          <div class="room-auth"><span id="room-account"></span><button id="room-login" class="button secondary" data-i18n="roomLogin">使用 Discord 登录</button><button id="room-logout" class="text-button subtle" data-i18n="roomLogout" hidden>退出登录</button></div>
+          <div id="room-entry" hidden><label><span data-i18n="roomNick">游戏昵称</span><input id="room-name" maxlength="40" autocomplete="nickname"></label><div class="room-entry-actions"><button id="room-create" class="button secondary" data-i18n="roomCreate">创建房间</button><label><span data-i18n="roomCodeLabel">8 位房间码</span><input id="room-code-input" maxlength="8" autocapitalize="characters" spellcheck="false" autocomplete="off"></label><button id="room-join" class="button secondary" data-i18n="roomJoin">加入房间</button></div></div>
+          <div id="room-live" hidden>
+            <div class="room-live-header"><strong id="room-code"></strong><button id="room-copy" class="text-button" data-i18n="roomCopy">复制房间码</button><button id="room-leave" class="text-button subtle"></button></div>
+            <p id="room-sync" class="room-sync" role="status"></p>
+            <div class="room-personal field-grid"><label><span data-i18n="roomPrepare">我的集结准备（秒）</span><input id="room-prepare" inputmode="decimal" value="300"></label><label><span data-i18n="roomMarch">我到目标的行军（秒）</span><input id="room-march" inputmode="decimal"></label></div><button id="room-save-self" class="button secondary" data-i18n="roomSaveSelf">共享我的时间</button>
+            <div id="room-members" class="room-members"></div>
+            <form id="room-enemy-form" hidden><h3 data-i18n="roomEnemyTitle">指挥：记录并共享敌方</h3><label><span data-i18n="roomEnemySelect">敌方队伍</span><select id="room-enemy-select"></select></label><div class="field-grid"><label><span data-i18n="name">昵称</span><input id="room-enemy-name" maxlength="40" required></label><label><span data-i18n="stage">阶段</span><select id="room-enemy-mode"><option value="gathering" data-i18n="gathering">集结中</option><option value="marching" data-i18n="marching">行军中</option></select></label><label><span data-i18n="prepareRemaining">集结剩余时间</span><input id="room-enemy-prepare" value="300" inputmode="decimal"></label><label><span data-i18n="march">行军时间</span><input id="room-enemy-march" inputmode="decimal" required></label></div><button type="submit" class="button secondary" data-i18n="roomRecord">记录现在并同步</button><p class="field-note" data-i18n="roomRecordHint">游戏倒计时走到输入读数时点击。下方敌方列表的微调和删除会同步给全房间。</p></form>
+          </div>
+          <p class="room-limits" data-i18n="roomLimits">免费配额保护：每人 1 房，全站 3 房，每房 30 人，6 小时过期。共享修改会计入每日额度。</p>
+        </div>
+      </details>
       <section class="pet-reminders" id="rally-pet-reminders" role="status" aria-live="polite" hidden><div><strong data-i18n="rallyPetReminderTitle">集结车头宠物可能即将或已经结束</strong><p id="rally-pet-reminder-text"></p></div><button class="button secondary" id="rally-pet-update-march" data-i18n="petUpdateMarch">去更新行军时间</button></section>
       <section class="pet-reminders" id="pet-reminders" role="status" aria-live="polite" hidden><div><strong data-i18n="petReminderTitle">宠物可能即将或已经结束</strong><p id="pet-reminder-text"></p></div><button class="button secondary" id="pet-update-march" data-i18n="petUpdateMarch">去更新行军时间</button></section>
       <section id="rally-page" class="page" aria-labelledby="rally-title">
