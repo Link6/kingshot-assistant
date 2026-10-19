@@ -98,8 +98,8 @@
     if(focused){const input=$('room-orders').querySelector(`[data-order-id="${CSS.escape(focused.id)}"] [data-rally-at]`);if(input){input.value=focused.value;input.focus({preventScroll:true});}}
     $('room-plan-target').textContent=room.plan?t('sharedArrivalTarget',{time:K.formatUtc(room.plan.target)}):'';
     $('room-plan-stale').hidden=!planStale();
-    $('room-attack-gaps').innerHTML=UI.gaps(rows,room.battle.margin);
-    $('room-gap-hint').textContent=t('gapMarginHint',{margin:room.battle.margin});
+    $('room-attack-gaps').innerHTML=UI.gaps(rows);
+    $('room-gap-hint').textContent=t('landingAnalysisHint');
     enemyRecords=room.enemies.filter(e=>e.active!==false).map(e=>({...e,marchSeconds:e.march}));
     defenseWindows=me()?.march?K.guardWindows(enemyRecords,me().march,room.battle.margin):[];
     $('room-defense-rows').innerHTML=allEnemies().map(renderEnemyCard).join('');

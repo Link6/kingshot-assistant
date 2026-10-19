@@ -62,7 +62,7 @@
     }).sort((a,b) => a.launchAt - b.launchAt);
     return {...plan, rows};
   }
-  function rallyGaps(rows, margin = 0.2) {
+  function rallyGaps(rows, margin = 0) {
     const pad = parseDuration(margin) * 1000;
     const sorted = [...rows].sort((a,b) => a.arrivalAt - b.arrivalAt);
     return sorted.slice(0,-1).map((before,i) => {

@@ -13,16 +13,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Kingshot">
   <!-- Select the installation language before the browser fetches a manifest. -->
-  <script src="assets/i18n-9f63dd3844975372.js"></script>
+  <script src="assets/i18n-0989ed5b5eee705d.js"></script>
   <link rel="stylesheet" href="assets/styles-62fa7393d635db5a.css">
   <script src="assets/install-ff9ccd4e38b61f8b.js" defer></script>
-  <script src="assets/core-acaa095c94ae7472.js" defer></script>
-  <script src="assets/battle-ui-bbec697d9a8f67f4.js" defer></script>
-  <script src="assets/timeline-ui-58769536bd0fc367.js" defer></script>
+  <script src="assets/core-1620554d3d23c0ca.js" defer></script>
+  <script src="assets/battle-ui-eb5efef3fdeb56af.js" defer></script>
+  <script src="assets/timeline-ui-c32df468275a065a.js" defer></script>
   <script src="assets/supabase-ee3be8de192b97cb.js" defer></script>
   <script src="assets/roomconfig-f4b9c6854684fe8f.js" defer></script>
-  <script src="assets/app-14adbf0f7ed552cd.js" defer></script>
-  <script src="assets/rooms-57c243b571de3193.js" defer></script>
+  <script src="assets/app-8012698a966b2ed1.js" defer></script>
+  <script src="assets/rooms-c3131c666974c6d6.js" defer></script>
 </head>
 <body>
   <aside class="sidebar">
@@ -65,7 +65,7 @@
             <section id="room-own-pet" class="pet-timer" aria-labelledby="room-pet-title"><h3 id="room-pet-title" data-i18n="roomPetTitle">我的宠物 · 预计计时</h3><p class="pet-help" data-i18n="roomPetHelp"></p><div class="pet-controls"><label><span data-i18n="roomPetElapsed">宠物已开启（分钟）</span><input id="room-pet-elapsed" type="number" min="0" max="120" step="any" inputmode="decimal" value="0"></label><button id="room-pet-save" type="button" class="button secondary" data-i18n="roomPetStart">从现在开始计时</button></div><div id="room-pet-error" class="form-error" role="alert" hidden></div><div id="room-pet-live" hidden><div class="pet-reading"><span data-i18n="petRemaining"></span><strong id="room-pet-countdown"></strong><button id="room-pet-clear" type="button" class="text-button subtle" data-i18n="petStop" hidden></button></div><p id="room-pet-end"></p><p id="room-pet-warning" class="pet-warning" role="status" hidden></p></div></section>
           </section>
         </div>
-        <section id="room-command" class="panel command-panel" hidden><h2 data-i18n="commandConsole">指挥台</h2><div class="battle-mode-buttons"><button class="button secondary" data-battle-mode="hold" data-i18n="battleHold">待命</button><button class="button secondary" data-battle-mode="attack" data-i18n="battleAttackMode">进攻集结</button><button class="button secondary" data-battle-mode="defend" data-i18n="battleDefend">防守补兵</button><button id="room-check-marches" class="button ghost" data-i18n="requestMarchCheck">要求重新核对行军</button></div><div class="command-fields"><label><span data-i18n="commandNote">全员指令</span><input id="room-command-note" maxlength="240" placeholder=""></label><label><span data-i18n="margin"></span><input id="room-command-margin" value="0.2" inputmode="decimal"></label><button id="room-command-save" class="button secondary" data-i18n="broadcastCommand">发布指令</button></div></section>
+        <section id="room-command" class="panel command-panel" hidden><h2 data-i18n="commandConsole">指挥台</h2><div class="battle-mode-buttons"><button class="button secondary" data-battle-mode="hold" data-i18n="battleHold">待命</button><button class="button secondary" data-battle-mode="attack" data-i18n="battleAttackMode">进攻集结</button><button class="button secondary" data-battle-mode="defend" data-i18n="battleDefend">防守补兵</button><button id="room-check-marches" class="button ghost" data-i18n="requestMarchCheck">要求重新核对行军</button></div><div class="command-fields"><label><span data-i18n="commandNote">全员指令</span><input id="room-command-note" maxlength="240" placeholder=""></label><label><span data-i18n="roomDefenseMargin">防守补兵窗口两端各留容错（秒）</span><input id="room-command-margin" value="0.2" inputmode="decimal"></label><button id="room-command-save" class="button secondary" data-i18n="broadcastCommand">发布指令</button></div></section>
         <section id="room-attack" class="room-operation" hidden>
           <div class="operation-heading"><h2 data-i18n="battleAttackMode">进攻集结</h2><p id="room-plan-target" class="field-note"></p></div>
           <div id="room-plan-stale" class="notice" role="status" data-i18n="sharedPlanStale" hidden></div>
@@ -93,7 +93,7 @@
             <section class="hero-timer" id="rally-hero"><div class="timer-top"><span class="live-label"><span class="status-dot"></span> <span data-i18n="launchCue">开车指令</span></span><span class="pill" id="rally-state"><span data-i18n="waitingPlan">等待排程</span></span></div><div class="timer-center"><div class="timer-kicker" id="rally-next-name"><span data-i18n="readyTogether">准备好，一起出发</span></div><div class="timer-value muted" id="rally-countdown">--<span>:</span>--</div><div class="timer-instruction" id="rally-instruction"><span data-i18n="generateHint">添加车头后，点击「生成开车倒计时」</span></div></div><div class="timer-footer"><div><small><span data-i18n="arrival">共同到达时间</span></small><strong id="rally-arrival"><span data-i18n="notScheduled">尚未安排</span></strong></div><span class="target-icon">⌖</span></div></section>
             <section class="panel rally-share" id="rally-share"><div class="panel-header"><h2 id="share-title" data-i18n="shareTitle">UTC 集结时间表</h2><button class="button secondary" id="copy-rally" disabled data-i18n="copySchedule">一键复制时间表</button></div><p class="panel-caption" id="share-hint" data-i18n="shareEmpty">先填写车头名单，点击「生成开车倒计时」，即可在这里一键复制所有车头的 UTC 发起时间。</p><textarea id="rally-share-text" hidden readonly rows="8" aria-labelledby="share-title" aria-describedby="share-hint" spellcheck="false"></textarea></section>
             <section class="panel"><div class="panel-header"><h2><span data-i18n="order">开车顺序</span></h2><button class="text-button subtle" id="stop-rally" disabled><span data-i18n="stop">停止计时</span></button></div><div id="rally-timeline" class="timeline"><div class="result-placeholder"><span data-i18n="timelineEmpty">排程后，这里会显示每位车头的开车时刻。</span></div></div><div id="rally-dirty" class="notice" hidden><span data-i18n="dirty">名单或设置已修改。当前仍按原排程计时，重新生成后生效。</span></div></section>
-            <section class="panel landing-panel"><div class="panel-header"><h2 data-i18n="landingAnalysis">集结到达与间隙分析</h2></div><p class="panel-caption" data-i18n="landingAnalysisHint">按校准后的预计到达排序；可插入窗口已扣除两端各 0.2 秒。</p><div id="rally-gaps"></div></section>
+            <section class="panel landing-panel"><div class="panel-header"><h2 data-i18n="landingAnalysis">集结到达与间隙分析</h2></div><p class="panel-caption" data-i18n="landingAnalysisHint">按校准后的预计到达排序，完整显示相邻集结之间的间隙，不扣除误差。</p><div id="rally-gaps"></div></section>
             <div class="tip"><span>i</span><p><span data-i18n="rallyTipA">开车时间指</span><strong><span data-i18n="rallyTipB">发起集结的时刻</span></strong><span data-i18n="rallyTipC">。请提前打开游戏操作页面，核对本次行军时长。</span></p></div>
           </div>
         </div>

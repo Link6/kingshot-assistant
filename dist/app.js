@@ -122,7 +122,7 @@
     $('rally-share-text').value=K.rallyShareText(plan,{leader:n=>t('leaderName',{n})});
     $('rally-timeline').innerHTML=!plan?`<div class="result-placeholder">${t('timelineEmpty')}</div>`:window.KingshotBattleUI.orders(plan.rows,true);
     for(const id of opened)$('rally-timeline').querySelector(`[data-order-id="${CSS.escape(id)}"] details`)?.setAttribute('open','');
-    $('rally-gaps').innerHTML=window.KingshotBattleUI.gaps(plan?.rows||[],0.2);
+    $('rally-gaps').innerHTML=window.KingshotBattleUI.gaps(plan?.rows||[]);
 
   }
   function renderGuardTimeline(){
