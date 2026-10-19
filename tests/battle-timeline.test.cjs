@@ -4,6 +4,18 @@ const {guardWindows,battleTimeline,recordEnemy,adjustEnemy}=require('../dist/cor
 const a={id:'a',arrivalAt:120000},b={id:'b',arrivalAt:128000};
 const close=(actual,expected)=>assert.ok(Math.abs(actual-expected)<1e-9,`${actual} != ${expected}`);
 
+test('zoomed room tracks clip long gathering and short marching phases to the same clock',()=>{
+  const {timelineRange}=require('../dist/core.js');
+  const now=100000,gathering=timelineRange(110000,410000,now,360000),marching=timelineRange(410000,445000,now,360000);
+  close(gathering.left,10/360*100);close(gathering.width,300/360*100);
+  close(marching.left,gathering.left+gathering.width);close(marching.width,35/360*100);
+  const inProgress=timelineRange(110000,410000,400000,60000);
+  assert.equal(inProgress.left,0);close(inProgress.width,10/60*100);
+  assert.equal(timelineRange(110000,410000,410000),null);
+  assert.equal(timelineRange(460000,470000,now,360000),null);
+  assert.equal(timelineRange(110000,120000,now,0),null);
+});
+
 test('departure and arrival tracks share the same 60-second scale, with march time deducted once',()=>{
   const windows=guardWindows([b,a],'5','1');
   const view=battleTimeline([b,a],windows,100000);

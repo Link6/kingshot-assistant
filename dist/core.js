@@ -144,14 +144,14 @@
         only25:plans.find(p=>p.n50===0)||null,only50:plans.find(p=>p.n25===0)||null};
     });
   }
+  function timelineRange(start, end, now, span = 60000) {
+    if(!Number.isFinite(span)||span<=0||end<start||end<=now||start>=now+span)return null;
+    return {left:(Math.max(now,start)-now)/span*100,width:(Math.min(now+span,end)-Math.max(now,start))/span*100};
+  }
   // Both tracks share wall-clock time; departure is already shifted by own march.
   function battleTimeline(records, windows, now) {
     const span = 60000, limit = now + span;
-    const clip = (start, end) => {
-      if (end < start || end <= now || start >= limit) return null;
-      const left = Math.max(now, start), right = Math.min(limit, end);
-      return {left:(left - now) / span * 100, width:(right - left) / span * 100};
-    };
+    const clip = (start, end) => timelineRange(start,end,now,span);
     return {
       attacks: records.filter(r=>r.active!==false).sort((a, b) => a.arrivalAt - b.arrivalAt).map(record => ({record,
         visible:record.arrivalAt >= now && record.arrivalAt <= limit,
@@ -200,7 +200,7 @@
     if(timing.stage==='uncertain')return true;
     return !Number.isFinite(confirmedAt)||confirmedAt<(timing.stage==='expired'?timing.end:timing.warnAt);
   }
-  const api = {parseDuration, formatMinutesSeconds, makeRallyPlan, adjustRallyPlan, rallyGaps, rallyTiming, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, reinforcementBoosts, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming, petMarchReview};
+  const api = {parseDuration, formatMinutesSeconds, makeRallyPlan, adjustRallyPlan, rallyGaps, rallyTiming, recordEnemy, enemyCountdown, adjustEnemy, guardWindows, nextWindow, reinforcementBoosts, timelineRange, battleTimeline, nextRallyInstruction, formatUtc, rallyShareText, makePetEstimate, restorePetEstimate, petTiming, petMarchReview};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.KingshotTiming = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

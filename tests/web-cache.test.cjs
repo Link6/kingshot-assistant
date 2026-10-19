@@ -27,7 +27,7 @@ function worker({offline=false,status=200,staleHtml=false}={}){
 test('HTML and precache reference the same content-addressed scripts and stylesheet',()=>{
   const {assets}=prepareAssets({check:true});
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
-  assert.equal(assets.length,9);
+  assert.equal(assets.length,10);
   for(const asset of assets){
     const match=asset.match(/^\.\/assets\/([\w-]+)-([a-f0-9]{16})\.(js|css)$/);assert.ok(match);
     const [,base,hash,ext]=match;

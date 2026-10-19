@@ -2,6 +2,8 @@
   'use strict';
   const $=id=>document.getElementById(id),I=window.KingshotI18n,K=window.KingshotTiming,B=window.KingshotRoomBridge;
   const UI=window.KingshotBattleUI,t=(k,p)=>I.t(k,p),cfg=window.KingshotRoomConfig,esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const attackTimeline=window.KingshotRoomTimeline.create($('room-attack-timeline'),'attack'),defenseTimeline=window.KingshotRoomTimeline.create($('room-defense-timeline'),'defend');
+  let timelineFrame=0;
   const scope=new URL('.',location.href).pathname,storageKey=`kingshot:${scope}:room`,providerKey=storageKey+':discord';
   let client,session=null,allowed=false,room=null,channel=null,busy=false,connected=false,realtimeReady=false,offset=0,bestRtt=Infinity,uncertainty=0,reading=false,refreshTimer,verifiedAt=0,leaderEdit=null,defenseWindows=[],enemyRecords=[],roomEpoch=0,personalPet=null;
   const role=()=>room?.members.find(m=>m.id===room.me)?.role;
@@ -115,6 +117,23 @@
     for(const [id,text] of [['room-order-title',title],['room-order-countdown',value],['room-order-instruction',instruction],['room-order-range',range]])if($(id).textContent!==text)$(id).textContent=text;
     $('room-order-countdown').classList.toggle('textual',/[^\d:.-]/.test(value));$('room-order').classList.toggle('go',go);
   }
+  function syncTimelineAnimation(){
+    const active=room&&allowed&&connected&&!document.hidden&&['attack','defend'].includes(room.battle.mode)&&!(room.battle.mode==='attack'&&planStale());
+    if(!active){if(timelineFrame)cancelAnimationFrame(timelineFrame);timelineFrame=0;return;}
+    if(!timelineFrame)timelineFrame=requestAnimationFrame(animateTimeline);
+  }
+  function animateTimeline(){
+    timelineFrame=0;
+    if(!room||!allowed||!connected||document.hidden||room.battle.mode==='hold'||room.battle.mode==='attack'&&planStale())return;
+    (room.battle.mode==='attack'?attackTimeline:defenseTimeline).frame(Date.now()+offset);
+    timelineFrame=requestAnimationFrame(animateTimeline);
+  }
+  function updateTimelines(time,boosts){
+    const paused=!connected||!allowed?'roomTimelinePaused':room.battle.mode==='hold'?'roomTimelineStandby':'';
+    if(room.battle.mode==='defend')defenseTimeline.update({records:enemyRecords,windows:defenseWindows,boosts,margin:room.battle.margin,confirmed:checked(me()),paused},time);
+    else attackTimeline.update({rows:room.plan?.rows||[],margin:room.battle.margin,me:room.me,paused:paused||(planStale()?'roomTimelineStale':'')},time);
+    syncTimelineAnimation();
+  }
   function tick(){
     if(!room||document.hidden)return;
     tickPersonalPet();
@@ -131,6 +150,7 @@
       card.querySelectorAll('[data-enemy-field="prepare"]').forEach(b=>b.disabled=!connected||busy||live.stage!=='gathering');
     }
     const boostAnalyses=room.battle.mode==='defend'?UI.boostAdvisor($('room-defense-windows'),defenseWindows,me()?.march,time,{key:'user:'+room.me,enabled:connected&&allowed&&checked(me())}):[];
+    updateTimelines(time,boostAnalyses);
     if(!connected){showOrder(t('roomOfflineShort'),'—',t('roomOffline'));return;}
     if(room.battle.mode==='hold'){showOrder(t('battleHold'),'—',t('waitCommander'));return;}
     if(!checked(me())){showOrder(t('checkMarchFirst'),'—',t('marchNeedsCheck'));return;}
@@ -184,7 +204,7 @@
     leaderSource();
   }
   function saveCode(code){try{if(code)localStorage.setItem(storageKey,code);else localStorage.removeItem(storageKey);}catch{}}
-  async function clearRoom(remember=false){roomEpoch++;if(channel){await client.removeChannel(channel);channel=null;}room=null;leaderEdit=null;connected=false;realtimeReady=false;reading=false;if(!remember)saveCode('');B.clear();renderStatus();}
+  async function clearRoom(remember=false){roomEpoch++;if(channel){await client.removeChannel(channel);channel=null;}room=null;syncTimelineAnimation();leaderEdit=null;connected=false;realtimeReady=false;reading=false;if(!remember)saveCode('');B.clear();renderStatus();}
   function trackClock(snapshot,start,elapsed){
     if(!snapshot?.serverNow)return;
     if(elapsed<bestRtt||Math.abs(snapshot.serverNow-(start+elapsed/2)-offset)>3000){bestRtt=elapsed;offset=snapshot.serverNow-(start+elapsed/2);uncertainty=elapsed/2;}
