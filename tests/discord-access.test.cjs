@@ -43,3 +43,10 @@ test('invalid JWT, missing provider token and unapproved origins are rejected be
 test('Discord rate limiting does not issue a grant',async()=>{
   const s=await setup({memberStatus:429});assert.equal((await s.run(s.request())).status,429);assert.equal(s.calls.length,3);
 });
+
+test('desktop main-process requests without Origin still require matching identity and guild membership',async()=>{
+  const s=await setup(),request=s.request();request.headers.delete('Origin');
+  assert.equal((await s.run(request)).status,200);assert.equal(s.calls.length,4);
+  const mismatch=await setup({discordId:'999999999999999999'}),other=mismatch.request();other.headers.delete('Origin');
+  assert.equal((await mismatch.run(other)).status,403);assert.equal(mismatch.calls.length,2);
+});

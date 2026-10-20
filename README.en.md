@@ -99,6 +99,10 @@ To use the app, download the executable for your system from [Releases](https://
 
 The desktop product name is **Kingshot Assistant**, with one set of downloads per platform. The interface and window title can switch between Chinese and English. The Windows application, installer and uninstaller, macOS application and DMG, and Linux AppImage use the project's gold K icon. Windows builds verify every icon size embedded in the actual EXEs.
 
+Desktop apps support battle rooms. Choose **Sign in with Discord** to authorize in the default browser. When that browser profile is already signed in to Discord, confirmation usually suffices without entering the account password again. Authorization returns to the desktop app, where you can create, join, or recover a room using the same Discord membership and role checks. Use **Cancel sign-in** in the desktop app to stop waiting; closing the browser tab does not immediately cancel the attempt. Reloading restores the current session and room. After fully quitting, authorization may be required again to verify membership and recover your room.
+
+Starting in v0.3.4, desktop authorization uses the system browser and a random loopback port instead of a separate embedded login window. The app does not read or copy browser cookies; PKCE establishes its own session. Attempts time out after three minutes and can be retried. A different default browser or profile may still require Discord sign-in.
+
 Install development dependencies and start the app:
 
 ```sh

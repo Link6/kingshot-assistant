@@ -4,7 +4,8 @@
   const UI=window.KingshotBattleUI,t=(k,p)=>I.t(k,p),cfg=window.KingshotRoomConfig,esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const attackTimeline=window.KingshotRoomTimeline.create($('room-attack-timeline'),'attack'),defenseTimeline=window.KingshotRoomTimeline.create($('room-defense-timeline'),'defend');
   const counterUI=window.KingshotCounterUI.create($('room-counter'),d=>run('counter',{...d,at:Date.now()+offset}));
-  let timelineFrame=0;
+  let timelineFrame=0,authenticating=false,loginAttempt=null;
+  const desktop=window.kingshotDesktop;
   const scope=new URL('.',location.href).pathname,storageKey=`kingshot:${scope}:room`,providerKey=storageKey+':discord';
   let client,session=null,allowed=false,room=null,channel=null,busy=false,connected=false,realtimeReady=false,offset=0,bestRtt=Infinity,uncertainty=0,reading=false,refreshTimer,verifiedAt=0,leaderEdit=null,defenseWindows=[],enemyRecords=[],roomEpoch=0,personalPet=null;
   const role=()=>room?.members.find(m=>m.id===room.me)?.role;
@@ -61,7 +62,9 @@
     $('room-account').textContent=t(allowed?'roomVerified':session?'roomVerify':'roomNeedLogin');
     $('room-login').hidden=!!session&&allowed;$('room-logout').hidden=!session;
     $('room-entry').hidden=!allowed||!!room;
-    for(const id of ['room-login','room-create','room-join','room-resume-owned'])$(id).disabled=busy||id!=='room-login'&&!allowed;
+    for(const id of ['room-login','room-create','room-join','room-resume-owned'])$(id).disabled=busy||authenticating||id!=='room-login'&&!allowed;
+    $('room-login').textContent=t(authenticating?'roomSigningIn':'roomLogin');
+    $('room-cancel-login').hidden=!desktop||!authenticating;
     if(!room)return;
     $('room-reauth').hidden=allowed;$('room-reauth').disabled=busy;
     $('room-code').textContent=room.code;$('room-leave').textContent=t(role()==='owner'?'roomClose':'roomLeave');
@@ -269,8 +272,8 @@
     if(!session)return false;
     const providerToken=sessionStorage.getItem(providerKey);
     if(!providerToken){allowed=false;online(false);error('roomReauth');renderStatus();return false;}
-    const response=await fetch(cfg.url+'/functions/v1/discord-access',{method:'POST',headers:{apikey:cfg.key,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({providerToken}),signal:AbortSignal.timeout(15000)});
-    if(!response.ok){
+    const response=desktop?await desktop.verifyRoomMembership({accessToken:session.access_token,providerToken}):await fetch(cfg.url+'/functions/v1/discord-access',{method:'POST',headers:{apikey:cfg.key,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({providerToken}),signal:AbortSignal.timeout(15000)});
+    if(response.status!==200){
       allowed=false;online(false);
       error(response.status===403?'roomNotMember':response.status===401?'roomReauth':'roomUnavailable');renderStatus();return false;
     }
@@ -322,23 +325,38 @@
     removeItem:key=>{try{localStorage.removeItem(key);}catch{}}
   };}
   function init(){
-    if(location.protocol==='file:'||window.kingshotDesktop){$('room-login').disabled=true;error('roomWebOnly');return;}
+    if(location.protocol==='file:'&&!desktop?.signInToRooms){$('room-login').disabled=true;error('roomWebOnly');return;}
     if(!cfg?.url||!cfg?.key||!window.supabase){$('room-login').disabled=true;error('roomUnavailable');return;}
-    client=window.supabase.createClient(cfg.url,cfg.key,{auth:{flowType:'pkce',storage:storageAdapter(),persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:storageKey+':auth'}});
+    client=window.supabase.createClient(cfg.url,cfg.key,{auth:{flowType:'pkce',storage:storageAdapter(),persistSession:true,autoRefreshToken:true,detectSessionInUrl:!desktop,storageKey:storageKey+':auth'}});
     client.auth.onAuthStateChange((event,next)=>{
       if(next?.provider_token)try{sessionStorage.setItem(providerKey,next.provider_token);}catch{}
       if(event==='TOKEN_REFRESHED'){session=next;fillDiscordNickname(session?.user);return;}
       setTimeout(()=>authChanged(next),0);
     });
     $('room-login').addEventListener('click',async()=>{
+      if(authenticating)return;
+      authenticating=true;renderStatus();
       error('');
       try{
-        const settings=await fetch(cfg.url+'/auth/v1/settings',{headers:{apikey:cfg.key},signal:AbortSignal.timeout(10000)}).then(r=>r.json());
-        if(!settings.external?.discord){error('roomProviderSetup');return;}
-        const {error:err}=await client.auth.signInWithOAuth({provider:'discord',options:{scopes:'guilds.members.read',redirectTo:new URL('.',location.href).href}});if(err)throw err;
-      }catch(err){await handleError(err);}
+        if(desktop){
+          loginAttempt=await desktop.prepareRoomSignIn(I.language);
+          if(loginAttempt.error)throw Error('Desktop sign-in unavailable');
+        }
+        if(!desktop){
+          const settings=await fetch(cfg.url+'/auth/v1/settings',{headers:{apikey:cfg.key},signal:AbortSignal.timeout(10000)}).then(r=>r.json());
+          if(!settings.external?.discord){error('roomProviderSetup');return;}
+        }
+        const {data,error:err}=await client.auth.signInWithOAuth({provider:'discord',options:{scopes:'guilds.members.read',redirectTo:desktop?loginAttempt.redirectTo:new URL('.',location.href).href,skipBrowserRedirect:!!desktop}});if(err)throw err;
+        if(desktop){
+          const result=await desktop.signInToRooms(data.url,loginAttempt.id);
+          if(result.error){error(result.error==='cancelled'?'roomLoginCancelled':result.error==='timeout'?'roomLoginTimeout':'roomLoginFailed');return;}
+          const {error:exchangeError}=await client.auth.exchangeCodeForSession(result.code);if(exchangeError)throw exchangeError;
+        }
+      }catch(err){if(desktop)error('roomLoginFailed');else await handleError(err);}
+      finally{if(desktop&&loginAttempt?.id)await desktop.cancelRoomSignIn(loginAttempt.id);loginAttempt=null;authenticating=false;renderStatus();}
     });
-    $('room-logout').addEventListener('click',async()=>{try{sessionStorage.removeItem(providerKey);await client.auth.signOut();}catch(err){await handleError(err);}});
+    $('room-cancel-login').addEventListener('click',()=>{if(loginAttempt?.id)desktop.cancelRoomSignIn(loginAttempt.id);});
+    $('room-logout').addEventListener('click',async()=>{try{if(desktop)await desktop.cancelRoomSignIn();sessionStorage.removeItem(providerKey);await client.auth.signOut();}catch(err){await handleError(err);}});
     $('room-reauth').addEventListener('click',()=>$('room-login').click());
     $('room-create').addEventListener('click',()=>run('create',{name:$('room-name').value.trim()}));
     $('room-resume-owned').addEventListener('click',()=>run('owned',{},''));

@@ -5,12 +5,13 @@ const fs=require('node:fs');
 const {pathToFileURL}=require('node:url');
 const {AlarmQueue}=require('./alarms.cjs');
 const {DesktopUpdates,updateMode,RELEASE_API}=require('./updates.cjs');
+const {DesktopRoomAuth}=require('./rooms-auth.cjs');
 const smoke=process.argv.includes('--smoke-test');
-if(smoke)app.setPath('userData',path.join(process.cwd(),'.runtime','smoke-user-data'));
+if(smoke){app.disableHardwareAcceleration();app.setPath('userData',path.join(process.cwd(),'.runtime','smoke-user-data'));}
 app.setAppUserModelId('io.github.link6.kingshot-assistant');
 const entry=path.join(__dirname,'..','dist','index.html'),entryURL=pathToFileURL(entry).href;
 const icon=path.join(__dirname,'icons',process.platform==='win32'?'icon.ico':'icon.png');
-let win,fullBounds,compact=false,pinned=false,alarmInterval,updates;
+let win,fullBounds,compact=false,pinned=false,alarmInterval,updates,roomAuth;
 const queue=new AlarmQueue();
 const preferences=()=>path.join(app.getPath('userData'),'window.json');
 function validBounds(b){return b&&['x','y','width','height'].every(k=>Number.isInteger(b[k]))&&b.width>=400&&b.height>=400&&b.width<=4000&&b.height<=3000&&screen.getAllDisplays().some(d=>b.x<d.workArea.x+d.workArea.width&&b.x+b.width>d.workArea.x&&b.y<d.workArea.y+d.workArea.height&&b.y+b.height>d.workArea.y);}
@@ -33,15 +34,17 @@ async function createWindow(){
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('will-navigate',(event,url)=>{if(url.split('#')[0]!==entryURL)event.preventDefault();});
   win.webContents.session.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
-  win.webContents.on('render-process-gone',()=>queue.clear());
-  win.on('close',persist);win.on('closed',()=>{win=null;queue.clear();});
+  win.webContents.on('render-process-gone',()=>{queue.clear();roomAuth?.cancel();});
+  win.webContents.on('did-start-navigation',(_event,_url,inPlace,isMainFrame)=>{if(isMainFrame&&!inPlace)roomAuth?.cancel();});
+  win.on('close',persist);win.on('closed',()=>{win=null;queue.clear();roomAuth?.cancel();});
   await win.loadFile(entry);
   if(smoke){
     // Exercise the native shell without displaying a test window or editing user data.
     const pinWorks=pin(true)&&!pin(false);resizeCompact(true);const small=win.getBounds();resizeCompact(false);
     const prefs=win.webContents.getLastWebPreferences();
     const petChecks=await require('./smoke-ui.cjs')(win,entry);
-    const result={loaded:win.webContents.getURL().startsWith(entryURL),pinWorks,compactWorks:small.width===490,isolated:prefs.contextIsolation,sandboxed:prefs.sandbox,nodeDisabled:!prefs.nodeIntegration,...petChecks};
+    const roomChecks=await require('./smoke-rooms.cjs')(win,entry,roomAuth);
+    const result={loaded:win.webContents.getURL().startsWith(entryURL),pinWorks,compactWorks:small.width===490,isolated:prefs.contextIsolation,sandboxed:prefs.sandbox,nodeDisabled:!prefs.nodeIntegration,...petChecks,...roomChecks};
     fs.writeFileSync(path.join(process.cwd(),'.desktop-smoke.json'),JSON.stringify(result,null,2));
     app.exit(Object.values(result).every(Boolean)?0:1);
   }else win.show();
@@ -50,6 +53,11 @@ if(!smoke&&!app.requestSingleInstanceLock())app.quit();
 else{
   app.on('second-instance',()=>{if(win){if(win.isMinimized())win.restore();win.focus();}});
   app.whenReady().then(async()=>{
+    roomAuth=new DesktopRoomAuth({parent:()=>win,openExternal:url=>shell.openExternal(url),fetcher:(url,options)=>net.fetch(url,options)});
+    ipcMain.handle('rooms:prepare-login',(e,language)=>{authorized(e);return roomAuth.prepare(language);});
+    ipcMain.handle('rooms:login',(e,url,id)=>{authorized(e);return roomAuth.login(url,id);});
+    ipcMain.handle('rooms:cancel-login',(e,id)=>{authorized(e);roomAuth.cancel(id);});
+    ipcMain.handle('rooms:verify',(e,tokens)=>{authorized(e);return roomAuth.verify(tokens);});
     const mode=updateMode({packaged:app.isPackaged&&!smoke,platform:process.platform,portable:!!(process.env.PORTABLE_EXECUTABLE_DIR||process.env.PORTABLE_EXECUTABLE_FILE),installed:fs.existsSync(path.join(path.dirname(app.getPath('exe')),'Uninstall Kingshot Assistant.exe')),appImage:!!process.env.APPIMAGE});
     updates=new DesktopUpdates({version:app.getVersion(),mode,updater:mode==='auto'?require('electron-updater').autoUpdater:null,
       fetchRelease:async()=>{const response=await net.fetch(RELEASE_API,{headers:{Accept:'application/vnd.github+json','User-Agent':'Kingshot-Assistant'},signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error('Release unavailable');const text=await response.text();if(text.length>256*1024)throw new Error('Release too large');return JSON.parse(text);},

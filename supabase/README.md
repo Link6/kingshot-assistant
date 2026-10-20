@@ -12,6 +12,8 @@
 4. Authentication → URL Configuration 的 Site URL 和 Redirect URL 都填 `https://link6.github.io/kingshot-assistant/`。本地验证可额外允许 `http://localhost:4173/`。
 5. 客户端请求 `guilds.members.read`，后端验证提供的 Discord token 与已认证 Supabase identity 相符，再查询指定服务器的当前成员身份。不需要机器人。
 
+Electron 桌面端通过系统默认浏览器完成 Discord 授权，可沿用该浏览器个人资料的 Discord 登录。主进程只监听 `127.0.0.1` 的随机端口，为每次登录生成独立的随机 state，并使用 PKCE 换取会话。现有线上认证服务已验证接受该本机回调；部署到其他项目时需要确认 `http://127.0.0.1:<随机端口>/discord/callback` 可被回调。无需网页中转部署或系统协议注册。回调只接收授权码，不接收浏览器会话令牌；会拒绝错误 state、Host、方法及带 Origin 的请求。完成、取消或超时后关闭监听端口，不读取或复制浏览器 Cookie。主进程仍仅向固定的 `discord-access` 地址转发成员验证，后端继续校验 Supabase JWT、对应的 Discord identity 和指定服务器成员资格。Discord provider token 仍只保留在当前页面会话中，不保存到数据库或长期本地存储。
+
 ## 配额和权限
 
 - 默认每人 1 个有效房间，全站最多 3 个，单房最多 30 人；6 小时后过期。
